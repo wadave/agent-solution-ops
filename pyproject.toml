@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tmpl-agents-solution-example"
+version = "0.0.1"
+description = "Template repository with agent implementation examples."
+dependencies = [
+    "toml",
+    "md-toc",
+    "ruff",
+    "pytest",
+    "bandit",
+    "pip-audit",
+    "pre-commit"
+]
+
+[tool.setuptools]
+packages = []

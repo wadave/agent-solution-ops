@@ -1,0 +1,11 @@
+# GCP Application Project
+app_namespace                   = "__APP_NAMESPACE__"
+project_id                      = "__GCP_PROJECT_NAME__"
+region                          = "__GCP_REGION_NAME__"
+agents_region                   = "global"
+bq_region                       = "us"
+gemini_enterprise_app_id        = "unset"
+oauth_client_id_secret_name     = "OAUTH_CLIENT_ID"
+oauth_client_secret_secret_name = "OAUTH_CLIENT_SECRET"
+env_sas                         = []
+test_user_emails                = []

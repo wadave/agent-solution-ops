@@ -1,0 +1,1 @@
+This file prevents Terraform from copying default new service files into this directory on inital resource creation.

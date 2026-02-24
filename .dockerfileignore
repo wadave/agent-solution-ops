@@ -1,0 +1,16 @@
+build
+docs
+iac
+scratch
+notes
+.vscode
+.idea
+
+**/notes/
+**/etl/
+**/build/
+**/venv/
+**/__pycache__/
+**/.pytest_cache/
+**/node_modules/
+**/.next/
