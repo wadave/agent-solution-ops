@@ -165,6 +165,11 @@ This section is for someone setting up the project from scratch in their own GCP
 
 #### Prerequisites
 
+**Gemini Enterprise App & OAuth Credentials**
+
+- You must create a Gemini Enterprise app.
+- You must set up OAuth 2.0 Web Client credentials and save the downloaded JSON file in Google Secret Manager as `client_secret`.
+
 **GCP Projects**
 
 You need two or three GCP projects:
@@ -254,9 +259,19 @@ Two Cloud Build GitHub connections are required — one in each project that run
 
 **To create each connection:**
 
+You can manually set up the connections via the GCP Console:
 1. In the GCP Console, go to **Cloud Build → Repositories** for the target project
 2. Click **Create host connection**, choose GitHub, and follow the OAuth flow
 3. Once the connection exists, link your repository to it
+
+**Or, use the `agent-starter-pack` CLI (Recommended for new repositories):**
+If you have cloned this repository and want to set it up for your own use, you can quickly configure the CI/CD pipeline and GitHub connections using the `agent-starter-pack` CLI:
+
+```bash
+uvx agent-starter-pack setup-cicd
+```
+
+For more details on this tool, see the [official documentation](https://googlecloudplatform.github.io/agent-starter-pack/cli/setup_cicd).
 
 Alternatively, store a GitHub Personal Access Token (PAT) in Secret Manager and set `github_pat_secret_id` and `github_app_installation_id` in `variables.tf` — Terraform will create the connection automatically if `create_cb_connection = false`.
 

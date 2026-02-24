@@ -14,30 +14,35 @@
 
 # Enable the Identity and Access Management API
 resource "google_project_service" "iam_manager_api" {
+  project            = var.project_id
   service            = "iam.googleapis.com"
   disable_on_destroy = false
 }
 
 # Enable the Service Usage API
 resource "google_project_service" "serviceusage_api" {
+  project            = var.project_id
   service            = "serviceusage.googleapis.com"
   disable_on_destroy = false
 }
 
 # Enable the Service Management API
 resource "google_project_service" "servicemanagement_api" {
+  project            = var.project_id
   service            = "servicemanagement.googleapis.com"
   disable_on_destroy = false
 }
 
 # Enable the Vertex AI API
 resource "google_project_service" "vertex_ai_api" {
+  project            = var.project_id
   service            = "aiplatform.googleapis.com"
   disable_on_destroy = false
 }
 
 # Enable the Discovery Engine API
 resource "google_project_service" "discovery_engine_api" {
+  project            = var.project_id
   service            = "discoveryengine.googleapis.com"
   disable_on_destroy = false
 }
