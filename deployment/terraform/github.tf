@@ -43,8 +43,9 @@ resource "github_repository" "repo" {
 
 
 
-# Reference existing GitHub PAT secret created by gcloud CLI
+# Reference existing GitHub PAT secret — only needed when creating the connection.
 data "google_secret_manager_secret" "github_pat" {
+  count     = var.create_cb_connection ? 0 : 1
   project   = var.cicd_runner_project_id
   secret_id = var.github_pat_secret_id
 }
@@ -54,16 +55,17 @@ data "google_project" "cicd_project" {
   project_id = var.cicd_runner_project_id
 }
 
-# Grant Cloud Build service account access to GitHub PAT secret
+# Grant Cloud Build service account access to GitHub PAT secret — only when creating connection.
 resource "google_secret_manager_secret_iam_member" "cloudbuild_secret_accessor" {
+  count     = var.create_cb_connection ? 0 : 1
   project   = var.cicd_runner_project_id
-  secret_id = data.google_secret_manager_secret.github_pat.secret_id
+  secret_id = data.google_secret_manager_secret.github_pat[0].secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:service-${data.google_project.cicd_project.number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
   depends_on = [resource.google_project_service.cicd_services]
 }
 
-# Create the GitHub connection (fallback for manual Terraform usage)
+# Create the GitHub connection — skipped when connection already exists (create_cb_connection = true).
 resource "google_cloudbuildv2_connection" "github_connection" {
   count      = var.create_cb_connection ? 0 : 1
   project    = var.cicd_runner_project_id
@@ -73,7 +75,7 @@ resource "google_cloudbuildv2_connection" "github_connection" {
   github_config {
     app_installation_id = var.github_app_installation_id
     authorizer_credential {
-      oauth_token_secret_version = "${data.google_secret_manager_secret.github_pat.id}/versions/latest"
+      oauth_token_secret_version = "${data.google_secret_manager_secret.github_pat[0].id}/versions/latest"
     }
   }
   depends_on = [

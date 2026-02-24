@@ -116,7 +116,7 @@ variable "github_pat_secret_id" {
 variable "create_cb_connection" {
   description = "Flag indicating if a Cloud Build connection already exists"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "create_repository" {
