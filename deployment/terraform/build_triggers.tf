@@ -23,7 +23,7 @@ resource "google_cloudbuild_trigger" "pr_checks" {
   repository_event_config {
     repository = "projects/${var.cicd_runner_project_id}/locations/${var.region}/connections/${var.host_connection_name}/repositories/${var.repository_name}"
     pull_request {
-      branch = "main"
+      branch = "^(main|staging)$"
     }
   }
 
@@ -55,7 +55,7 @@ resource "google_cloudbuild_trigger" "cd_pipeline" {
   repository_event_config {
     repository = "projects/${var.cicd_runner_project_id}/locations/${var.region}/connections/${var.host_connection_name}/repositories/${var.repository_name}"
     push {
-      branch = "main"
+      branch = "staging"
     }
   }
 
@@ -93,6 +93,9 @@ resource "google_cloudbuild_trigger" "deploy_to_prod_pipeline" {
   service_account = resource.google_service_account.cicd_runner_sa.id
   repository_event_config {
     repository = "projects/${var.cicd_runner_project_id}/locations/${var.region}/connections/${var.host_connection_name}/repositories/${var.repository_name}"
+    push {
+      branch = "main"
+    }
   }
   filename = ".cloudbuild/deploy-to-prod.yaml"
   include_build_logs = "INCLUDE_BUILD_LOGS_WITH_STATUS"

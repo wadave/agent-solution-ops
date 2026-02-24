@@ -130,33 +130,6 @@ steps:
         echo "HTTP link: https://console.cloud.google.com/storage/browser/${_LOGS_BUCKET_NAME_STAGING}/load-test-results/results-$${_TIMESTAMP}"
         echo "_________________________________________________________________________"
 
-  # Trigger Prod Deployment
-  - name: gcr.io/cloud-builders/gcloud
-    id: trigger-prod-deployment
-    entrypoint: gcloud
-    args:
-      - "beta"
-      - "builds"
-      - "triggers"
-      - "run"
-      - "deploy-agents-solution-ops"
-      - "--region"
-      - "$LOCATION"
-      - "--project"
-      - "$PROJECT_ID"
-      - "--sha"
-      - $COMMIT_SHA
-
-  - name: gcr.io/cloud-builders/gcloud
-    id: echo-view-build-trigger-link
-    entrypoint: /bin/bash
-    args:
-      - "-c"
-      - |
-        echo "_________________________________________________________________________"
-        echo "Production deployment triggered. View progress and / or approve on the Cloud Build Console:"
-        echo "https://console.cloud.google.com/cloud-build/builds;region=$LOCATION"
-        echo "_________________________________________________________________________"
 
 substitutions:
   _STAGING_PROJECT_ID: YOUR_STAGING_PROJECT_ID

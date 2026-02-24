@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from unittest.mock import patch
+
+from mcp.types import ListToolsResult
 from google.adk.agents.run_config import RunConfig, StreamingMode
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
@@ -20,11 +23,13 @@ from google.genai import types
 from adk_agent.agent import root_agent
 
 
-def test_agent_stream() -> None:
+@patch('google.adk.tools.mcp_tool.mcp_toolset.McpToolset.get_tools')
+def test_agent_stream(mock_get_tools) -> None:
     """
     Integration test for the agent stream functionality.
     Tests that the agent returns valid streaming responses.
     """
+    mock_get_tools.return_value = ListToolsResult(tools=[])
 
     session_service = InMemorySessionService()
 

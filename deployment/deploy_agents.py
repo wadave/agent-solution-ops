@@ -175,7 +175,9 @@ def main():
             f.write(agent_resource_name)
         logger.info(f"Wrote agent resource name to {hosting_agent_id_path}")
     except OSError:
-        logger.warning(f"Could not write agent resource name to {hosting_agent_id_path}")
+        logger.warning(
+            f"Could not write agent resource name to {hosting_agent_id_path}"
+        )
 
 
 if __name__ == "__main__":
