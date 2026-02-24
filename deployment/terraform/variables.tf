@@ -87,7 +87,8 @@ variable "cicd_roles" {
     "roles/cloudbuild.builds.builder",
     "roles/serviceusage.serviceUsageAdmin",
     "roles/run.admin",
-    "roles/resourcemanager.projectIamAdmin"
+    "roles/resourcemanager.projectIamAdmin",
+    "roles/secretmanager.secretAccessor",
   ]
 }
 

@@ -2,6 +2,36 @@
 
 Complete guide for setting up an ADK agent with dual-mode OAuth authentication to access MCP (Model Context Protocol) weather services.
 
+## Table of Contents
+- [High-Level Component Diagram](#high-level-component-diagram)
+- [Quick Start](#quick-start)
+  - [Prerequisites](#prerequisites)
+  - [1. Clone and Setup](#1-clone-and-setup)
+  - [2. Configure Google OAuth](#2-configure-google-oauth)
+  - [3. Set Environment Variables](#3-set-environment-variables)
+  - [4. Run Locally](#4-run-locally)
+- [Deployment](#deployment)
+  - [Architecture](#architecture)
+  - [CI/CD Pipeline](#cicd-pipeline)
+  - [One-time Setup](#one-time-setup)
+    - [Prerequisites](#prerequisites-1)
+    - [Step 1 — Create the Terraform state bucket](#step-1--create-the-terraform-state-bucket)
+    - [Step 2 — Configure `deployment/terraform/variables.tf`](#step-2--configure-deploymentterraformvariablestf)
+    - [Step 3 — Set up Cloud Build GitHub connections](#step-3--set-up-cloud-build-github-connections)
+    - [Step 4 — Configure Cloud Build substitutions](#step-4--configure-cloud-build-substitutions)
+    - [Step 5 — Bootstrap Terraform](#step-5--bootstrap-terraform)
+    - [Step 6 — Update Cloud Build substitutions with created service account emails](#step-6--update-cloud-build-substitutions-with-created-service-account-emails)
+    - [Step 7 — Push to trigger CI/CD](#step-7--push-to-trigger-cicd)
+    - [Ongoing IAM changes](#ongoing-iam-changes)
+    - [Manual operations (outside CI/CD)](#manual-operations-outside-cicd)
+- [What This Project Does](#what-this-project-does)
+  - [Authentication Architecture](#authentication-architecture)
+- [Environment Variables Reference](#environment-variables-reference)
+  - [Agent (`src/adk_agent/.env`)](#agent-srcadk_agentenv)
+  - [MCP Server (`src/mcp_servers/weather_mcp_server/.env`)](#mcp-server-srcmcpserversweathermcpserverenv)
+- [Troubleshooting](#troubleshooting)
+  - [Cloud Build fails with 403 downloading Python packages](#cloud-build-fails-with-403-downloading-python-packages)
+
 ## High-Level Component Diagram
 
 ```mermaid
@@ -288,7 +318,6 @@ Edit the `substitutions` block at the bottom of `.cloudbuild/staging.yaml` and `
 | `_APP_SERVICE_ACCOUNT_PROD` | Service account email for the prod Agent Engine (created by Terraform — set after first apply) |
 | `_AUTH_ID_STAGING` | GE authorization ID for staging (default: `staging-ui_oauth_token`) |
 | `_AUTH_ID_PROD` | GE authorization ID for prod (default: `prod-ui_oauth_token`) |
-| `_LOGS_BUCKET_NAME_STAGING` | GCS bucket for load test result export |
 
 The `AUTH_ID` values must match the `${each.key}-${local.auth_id}` pattern in `deployment/terraform/gemini_enterprise.tf`.
 
@@ -334,7 +363,7 @@ The pipelines are triggered by branch pushes:
 
 | Branch | Pipeline | File |
 |---|---|---|
-| `staging` | Build, deploy to staging, load test | `.cloudbuild/staging.yaml` |
+| `staging` | Build MCP image, Terraform (Cloud Run + OAuth), deploy Agent Engine, register to GE | `.cloudbuild/staging.yaml` |
 | `main` | Deploy to production (requires manual approval in Cloud Build) | `.cloudbuild/deploy-to-prod.yaml` |
 
 Push to `staging` to trigger the first automated deployment:
@@ -356,6 +385,29 @@ cd deployment/terraform
 terraform apply -target=google_project_iam_member.staging_cicd_deployment_roles \
                 -target=google_project_iam_member.other_projects_roles
 ```
+
+#### Gemini Enterprise OAuth registration
+
+GE OAuth authorization and agent registration are controlled by `oauth_client_id_secret_name` in `variables.tf`. Set it to the Secret Manager secret name that holds your OAuth client JSON (web app format):
+
+```hcl
+variable "oauth_client_id_secret_name" {
+  default = "client_secret"
+}
+```
+
+**For fresh setups:** the bootstrap `terraform apply` in Step 5 grants `roles/secretmanager.secretAccessor` to the staging CI/CD service account automatically (it is part of `cicd_roles`). No manual action is needed.
+
+**For existing deployments** where `oauth_client_id_secret_name` was previously empty: setting it to a non-empty value causes Terraform to read the secret at plan time, before it can apply the new IAM role. This is a one-time bootstrapping problem. Break the deadlock with a manual grant:
+
+```bash
+gcloud secrets add-iam-policy-binding <SECRET_NAME> \
+  --project=<STAGING_PROJECT_ID> \
+  --member="serviceAccount:<PROJECT_NAME>-cd@<STAGING_PROJECT_ID>.iam.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+```
+
+The SA email follows the pattern `{project_name}-cd@{staging_project_id}.iam.gserviceaccount.com` (e.g. `agents-solution-ops-cd@dw-genai-dev.iam.gserviceaccount.com`). After this one-time grant, the pipeline takes over and manages the role via Terraform going forward.
 
 ---
 
