@@ -22,7 +22,7 @@ from google.genai import types
 from adk_agent.agent import root_agent
 
 
-@patch('google.adk.tools.mcp_tool.mcp_toolset.McpToolset.get_tools')
+@patch("google.adk.tools.mcp_tool.mcp_toolset.McpToolset.get_tools")
 def test_agent_stream(mock_get_tools) -> None:
     """
     Integration test for the agent stream functionality.

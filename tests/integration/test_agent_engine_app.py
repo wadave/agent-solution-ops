@@ -31,14 +31,14 @@ def agent_app() -> AgentEngineApp:
 
 
 @pytest.mark.asyncio
-@patch('google.adk.tools.mcp_tool.mcp_toolset.McpToolset.get_tools')
+@patch("google.adk.tools.mcp_tool.mcp_toolset.McpToolset.get_tools")
 async def test_agent_stream_query(mock_get_tools, agent_app: AgentEngineApp) -> None:
     """
     Integration test for the agent stream query functionality.
     Tests that the agent returns valid streaming responses.
     """
     mock_get_tools.return_value = []
-    
+
     # Create message and events for the async_stream_query
     message = "Hi!"
     events = []

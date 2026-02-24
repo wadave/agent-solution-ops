@@ -370,16 +370,18 @@ def get_access_token(readonly_context: ReadonlyContext, auth_id: str) -> str | N
             pass
 
     # Method 3: Try readonly_context.auth_token
-    if hasattr(readonly_context, "auth_token") and readonly_context.auth_token:
-        if auth_id in readonly_context.auth_token:
-            return readonly_context.auth_token[auth_id]
+    auth_token = getattr(readonly_context, "auth_token", None)
+    if auth_token:
+        if auth_id in auth_token:  # type: ignore
+            return auth_token[auth_id]  # type: ignore
 
     # Method 4: Check for managed credentials object (e.g. from OAuth2CredentialExchanger)
     # The exchanger might place a google.oauth2.credentials.Credentials object in the context
-    if hasattr(readonly_context, "credentials"):
-        creds = readonly_context.credentials
-        if hasattr(creds, "token") and creds.token:
-            return creds.token
+    creds = getattr(readonly_context, "credentials", None)
+    if creds:
+        token = getattr(creds, "token", None)
+        if token:
+            return str(token)
 
     # Not found - print user-facing error message
     print(f"OAuth token not found for AUTH_ID='{auth_id}'")
