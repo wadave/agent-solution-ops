@@ -199,7 +199,7 @@ def main():
                         "to migrate to the current SDK. GE registration will be "
                         "refreshed by Terraform on the next run."
                     )
-                    client.agent_engines.delete(name=existing_agents[display_name])
+                    client.agent_engines.delete(name=existing_agents[display_name], force=True)
                     remote_agent = client.agent_engines.create(config=config)
                 else:
                     raise
