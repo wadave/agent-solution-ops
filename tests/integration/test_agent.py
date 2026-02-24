@@ -14,7 +14,6 @@
 
 from unittest.mock import patch
 
-from mcp.types import ListToolsResult
 from google.adk.agents.run_config import RunConfig, StreamingMode
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
@@ -29,7 +28,7 @@ def test_agent_stream(mock_get_tools) -> None:
     Integration test for the agent stream functionality.
     Tests that the agent returns valid streaming responses.
     """
-    mock_get_tools.return_value = ListToolsResult(tools=[])
+    mock_get_tools.return_value = []
 
     session_service = InMemorySessionService()
 

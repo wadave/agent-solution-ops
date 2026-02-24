@@ -16,7 +16,6 @@ import logging
 from unittest.mock import patch
 
 import pytest
-from mcp.types import ListToolsResult
 from google.adk.events.event import Event
 
 from adk_agent.agent_engine_app import AgentEngineApp
@@ -38,7 +37,7 @@ async def test_agent_stream_query(mock_get_tools, agent_app: AgentEngineApp) -> 
     Integration test for the agent stream query functionality.
     Tests that the agent returns valid streaming responses.
     """
-    mock_get_tools.return_value = ListToolsResult(tools=[])
+    mock_get_tools.return_value = []
     
     # Create message and events for the async_stream_query
     message = "Hi!"
