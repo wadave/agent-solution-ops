@@ -125,7 +125,7 @@ def main():
         )
         sys.exit(1)
 
-    display_name = f"ADK Hosting Agent ({display_name_suffix.lower()})"
+    display_name = f"ADK Hosting Agent for MCP ({display_name_suffix.lower()})"
 
     # adk_agent.agent validates AUTH_ID (and optionally MCP_URL) at module level.
     # Set them in the environment so the import succeeds before we introspect the agent.
