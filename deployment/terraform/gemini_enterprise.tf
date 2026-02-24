@@ -75,7 +75,7 @@ module "gemini_enterprise_agent_engine_register" {
   gemini_enterprise_region = var.agents_region
 
   # Map to the display name deployed by deploy_agents.py
-  agent_display_name = "ADK Hosting Agent (${each.key})"
+  agent_display_name = "ADK Hosting Agent for MCP (${each.key})"
   agent_description  = "Hosting agent for ${each.key}"
 
   gemini_enterprise_agent_name       = "${local.gemini_enterprise_agent_name} (${each.key})"
