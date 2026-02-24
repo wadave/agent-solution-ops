@@ -42,6 +42,7 @@ import tempfile
 
 import vertexai
 from dotenv import load_dotenv
+from google.genai.errors import ClientError
 from vertexai._genai import _agent_engines_utils
 from vertexai._genai.types import AgentEngineConfig
 
@@ -181,9 +182,27 @@ def main():
 
         if display_name in existing_agents:
             logger.info(f"Updating existing agent: {display_name}")
-            remote_agent = client.agent_engines.update(
-                name=existing_agents[display_name], config=config
-            )
+            try:
+                remote_agent = client.agent_engines.update(
+                    name=existing_agents[display_name], config=config
+                )
+            except ClientError as e:
+                if "spec.package_spec" in str(e):
+                    # The existing agent was created with the legacy package_spec
+                    # API. The platform does not allow switching to deployment_source
+                    # in-place, so delete and recreate it once to migrate.
+                    # Gemini Enterprise registration will be refreshed on the next
+                    # Terraform run.
+                    logger.warning(
+                        "Existing agent uses the legacy package_spec spec and cannot "
+                        "be updated to deployment_source. Deleting and recreating it "
+                        "to migrate to the current SDK. GE registration will be "
+                        "refreshed by Terraform on the next run."
+                    )
+                    client.agent_engines.delete(name=existing_agents[display_name])
+                    remote_agent = client.agent_engines.create(config=config)
+                else:
+                    raise
         else:
             logger.info(f"Creating new agent: {display_name}")
             remote_agent = client.agent_engines.create(config=config)
