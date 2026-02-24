@@ -12,11 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-provider "google" {
-  region = var.region
-  user_project_override = true
-}
-
 resource "google_storage_bucket" "logs_data_bucket" {
   for_each                    = toset(local.all_project_ids)
   name                        = "${each.value}-${var.project_name}-logs"
