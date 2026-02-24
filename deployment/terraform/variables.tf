@@ -177,7 +177,7 @@ variable "ge_app_prod" {
 variable "oauth_client_id_secret_name" {
   type        = string
   description = "Secret Manager secret name containing the OAuth client credentials JSON (web app format). Leave empty to skip Gemini Enterprise OAuth registration."
-  default     = ""
+  default     = "client_secret"
 }
 
 variable "agents_region" {
