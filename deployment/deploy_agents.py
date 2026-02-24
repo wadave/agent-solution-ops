@@ -36,6 +36,7 @@ Environment variables:
 import importlib
 import logging
 import os
+import re
 import shutil
 import sys
 
@@ -218,14 +219,34 @@ def main():
                     raise
         else:
             logger.info(f"Creating new agent: {display_name}")
-            remote_agent = client.agent_engines.create(config=config)
+            try:
+                remote_agent = client.agent_engines.create(config=config)
+            except RuntimeError as e:
+                # GCP can deduplicate create() calls and return a stale failed LRO
+                # when a previous create attempt left a resource in FAILED state.
+                # When this happens, parse the resource name from the error and
+                # update() it instead to force a fresh redeployment.
+                match = re.search(
+                    r"(projects/[^/]+/locations/[^/]+/reasoningEngines/\d+)", str(e)
+                )
+                if "failed to start" in str(e) and match:
+                    stale_name = match.group(1)
+                    logger.warning(
+                        f"create() returned a stale failed resource ({stale_name}). "
+                        "Falling back to update() to trigger a fresh redeployment."
+                    )
+                    remote_agent = client.agent_engines.update(
+                        name=stale_name, config=config
+                    )
+                else:
+                    raise
 
         agent_resource_name = remote_agent.api_resource.name
     finally:
         shutil.rmtree(clean_pkg, ignore_errors=True)
     logger.info(f"Deployed '{display_name}': {agent_resource_name}")
 
-    # Write agent resource name for downstream CI/CD steps (e.g. frontend deployment).
+    # Write agent resource name for downstream CI/CD steps (e.g. load test).
     hosting_agent_id_path = os.environ.get(
         "HOSTING_AGENT_ID_FILE", "/workspace/hosting_agent_id.txt"
     )
@@ -237,6 +258,26 @@ def main():
         logger.warning(
             f"Could not write agent resource name to {hosting_agent_id_path}"
         )
+
+    # Update deployment_metadata.json for the load test, which reads
+    # remote_agent_engine_id and parses it as a full resource path.
+    import datetime
+    import json
+
+    metadata_path = "deployment_metadata.json"
+    try:
+        with open(metadata_path, "w") as f:
+            json.dump(
+                {
+                    "remote_agent_engine_id": agent_resource_name,
+                    "deployment_timestamp": datetime.datetime.utcnow().isoformat(),
+                },
+                f,
+                indent=2,
+            )
+        logger.info(f"Updated {metadata_path} with resource name")
+    except OSError:
+        logger.warning(f"Could not update {metadata_path}")
 
 
 if __name__ == "__main__":
