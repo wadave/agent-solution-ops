@@ -128,6 +128,7 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
+deployment_metadata.json
 cover/
 
 # Frameworks (Django, Flask, etc.)

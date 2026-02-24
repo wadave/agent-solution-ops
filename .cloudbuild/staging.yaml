@@ -37,23 +37,24 @@ steps:
       - "push"
       - "${_REGION}-docker.pkg.dev/${_STAGING_PROJECT_ID}/mcp-server-repo/weather-mcp-server:${COMMIT_SHA}"
 
-  - name: "hashicorp/terraform:1.5.7"
-    id: terraform-init
-    dir: "deployment/terraform"
-    args: ["init"]
-
-  - name: "hashicorp/terraform:1.5.7"
+  - name: 'gcr.io/google.com/cloudsdktool/google-cloud-cli:alpine'
     id: terraform-apply
-    dir: "deployment/terraform"
+    entrypoint: bash
     args:
-      - "apply"
-      - "-auto-approve"
-      - "-refresh=false"
-      - "-var=mcp_image_tag=${COMMIT_SHA}"
-      - "-target=google_project_iam_member.staging_cicd_project_roles"
-      - "-target=google_artifact_registry_repository.mcp_repo[\"staging\"]"
-      - "-target=google_cloud_run_v2_service.mcp_server[\"staging\"]"
-      - "-target=module.gemini_enterprise_oauth[\"staging\"]"
+      - '-c'
+      - |
+        set -e
+        apk add --no-cache unzip wget
+        wget -q https://releases.hashicorp.com/terraform/1.5.7/terraform_1.5.7_linux_amd64.zip
+        unzip terraform_1.5.7_linux_amd64.zip
+        mv terraform /usr/local/bin/
+        cd deployment/terraform
+        terraform init
+        terraform apply -auto-approve -refresh=false \
+          -var=mcp_image_tag=${COMMIT_SHA} \
+          -target='google_project_iam_member.staging_cicd_project_roles' \
+          -target='google_artifact_registry_repository.mcp_repo["staging"]' \
+          -target='google_cloud_run_v2_service.mcp_server["staging"]'
 
   # Extract the Cloud Run MCP server URL after Terraform creates the service.
   # The URL is saved to /workspace/mcp_url.txt for use in the deploy step.
@@ -110,6 +111,7 @@ steps:
         cd deployment/terraform
         terraform init
         terraform apply -auto-approve \
+          -target='module.gemini_enterprise_oauth["staging"]' \
           -target='module.gemini_enterprise_agent_engine_register["staging"]'
     waitFor: ['deploy-adk-agent']
 
