@@ -101,7 +101,6 @@ def main():
     mcp_url = os.environ.get("MCP_URL", "")
     auth_id = os.environ.get("AUTH_ID", "")
     display_name_suffix = os.environ.get("DISPLAY_NAME_SUFFIX", "Staging")
-    bucket_name = os.environ.get("BUCKET_NAME", f"{project_id}-bucket")
     # Bucket name follows the pattern set in deployment/terraform/storage.tf:
     #   google_storage_bucket.logs_data_bucket = "{project_id}-{project_name}-logs"
     logs_bucket_name = os.environ.get(
@@ -162,6 +161,16 @@ def main():
     try:
         _copy_source_clean("./src/adk_agent", clean_pkg)
 
+        # The SDK sends requirements_file as a path string to the Agent Engine API;
+        # the runtime looks for that path inside the extracted tarball at /code/.
+        # Copy the requirements file into the clean package so it's bundled in the
+        # tarball at adk_agent/requirements.txt → /code/adk_agent/requirements.txt.
+        req_in_tarball = None
+        if os.path.exists(requirements_file):
+            req_in_tarball = os.path.join(clean_pkg, "requirements.txt")
+            shutil.copy2(requirements_file, req_in_tarball)
+            req_in_tarball = f"{clean_pkg}/requirements.txt"  # tarball-relative path
+
         config = AgentEngineConfig(
             display_name=display_name,
             source_packages=[clean_pkg],
@@ -170,9 +179,9 @@ def main():
             class_methods=class_methods_list,
             env_vars=env_vars,
             service_account=service_account,
-            requirements_file=requirements_file,
-            staging_bucket=f"gs://{bucket_name}",
+            requirements_file=req_in_tarball,
             agent_framework="google-adk",
+            python_version="3.12",
         )
 
         vertexai.init(project=project_id, location=location)
