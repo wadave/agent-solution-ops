@@ -29,6 +29,11 @@ dependencies = [
   "python-dotenv>=1.2.1",
 ]
 
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple"
+default = true
+
 [project.optional-dependencies]
 lint = [
     "codespell>=2.4.1",
