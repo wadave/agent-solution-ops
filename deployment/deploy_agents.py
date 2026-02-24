@@ -36,7 +36,9 @@ Environment variables:
 import importlib
 import logging
 import os
+import shutil
 import sys
+import tempfile
 
 import vertexai
 from dotenv import load_dotenv
@@ -45,6 +47,27 @@ from vertexai._genai.types import AgentEngineConfig
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+_EXCLUDE = {
+    ".env", ".env.example", "client_secret.json", "client_secrets.json",
+    "credentials.json", "token.json",
+}
+_EXCLUDE_DIRS = {"__pycache__", ".gemini"}
+_EXCLUDE_SUFFIXES = {".pyc", ".pyo", ".ipynb"}
+
+
+def _copy_source_clean(src_dir: str, dest_dir: str) -> None:
+    """Copy src_dir to dest_dir, omitting credentials, caches, and notebooks."""
+    for root, dirs, files in os.walk(src_dir):
+        dirs[:] = [d for d in dirs if d not in _EXCLUDE_DIRS]
+        rel_root = os.path.relpath(root, src_dir)
+        target_root = os.path.join(dest_dir, rel_root)
+        os.makedirs(target_root, exist_ok=True)
+        for fname in files:
+            if fname in _EXCLUDE or any(fname.endswith(s) for s in _EXCLUDE_SUFFIXES):
+                continue
+            shutil.copy2(os.path.join(root, fname), os.path.join(target_root, fname))
 
 
 def generate_class_methods_from_agent(agent_instance):
@@ -132,38 +155,42 @@ def main():
     if mcp_url:
         env_vars["MCP_URL"] = mcp_url
 
-    config = AgentEngineConfig(
-        display_name=display_name,
-        source_packages=["./src/adk_agent"],
-        entrypoint_module="adk_agent.agent_engine_app",
-        entrypoint_object="agent_engine",
-        class_methods=class_methods_list,
-        env_vars=env_vars,
-        service_account=service_account,
-        requirements_file=requirements_file,
-        staging_bucket=f"gs://{bucket_name}",
-        agent_framework="google-adk",
-    )
+    with tempfile.TemporaryDirectory() as tmpdir:
+        clean_pkg = os.path.join(tmpdir, "adk_agent")
+        _copy_source_clean("./src/adk_agent", clean_pkg)
 
-    vertexai.init(project=project_id, location=location)
-    client = vertexai.Client(
-        project=project_id,
-        location=location,
-        http_options={"api_version": "v1beta1"},
-    )
-
-    existing_agents = list_existing_agents(client)
-
-    if display_name in existing_agents:
-        logger.info(f"Updating existing agent: {display_name}")
-        remote_agent = client.agent_engines.update(
-            name=existing_agents[display_name], config=config
+        config = AgentEngineConfig(
+            display_name=display_name,
+            source_packages=[clean_pkg],
+            entrypoint_module="adk_agent.agent_engine_app",
+            entrypoint_object="agent_engine",
+            class_methods=class_methods_list,
+            env_vars=env_vars,
+            service_account=service_account,
+            requirements_file=requirements_file,
+            staging_bucket=f"gs://{bucket_name}",
+            agent_framework="google-adk",
         )
-    else:
-        logger.info(f"Creating new agent: {display_name}")
-        remote_agent = client.agent_engines.create(config=config)
 
-    agent_resource_name = remote_agent.api_resource.name
+        vertexai.init(project=project_id, location=location)
+        client = vertexai.Client(
+            project=project_id,
+            location=location,
+            http_options={"api_version": "v1beta1"},
+        )
+
+        existing_agents = list_existing_agents(client)
+
+        if display_name in existing_agents:
+            logger.info(f"Updating existing agent: {display_name}")
+            remote_agent = client.agent_engines.update(
+                name=existing_agents[display_name], config=config
+            )
+        else:
+            logger.info(f"Creating new agent: {display_name}")
+            remote_agent = client.agent_engines.create(config=config)
+
+        agent_resource_name = remote_agent.api_resource.name
     logger.info(f"Deployed '{display_name}': {agent_resource_name}")
 
     # Write agent resource name for downstream CI/CD steps (e.g. frontend deployment).

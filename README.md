@@ -65,7 +65,7 @@ graph TB
 ### 1. Clone and Setup
 
 ```bash
-cp src/adk_agent/.env.example src/adk_agent/.env
+cp .env.example .env
 ```
 
 ### 2. Configure Google OAuth
@@ -161,45 +161,133 @@ trigger prod pipeline  (staging only)
 
 ### One-time Setup
 
-#### 1. Configure `deployment/terraform/variables.tf`
+This section is for someone setting up the project from scratch in their own GCP environment. Follow the steps in order — each step is a prerequisite for the next.
+
+#### Prerequisites
+
+**GCP Projects**
+
+You need two or three GCP projects:
+
+| Variable | Purpose |
+|---|---|
+| `cicd_runner_project_id` | Hosts the Cloud Build triggers for PR checks and prod deploys. Can be the same as `prod_project_id`. |
+| `staging_project_id` | Hosts the staging Cloud Run service, Agent Engine, and the staging CD pipeline trigger. |
+| `prod_project_id` | Hosts the production Cloud Run service and Agent Engine. |
+
+**Required caller permissions**
+
+The identity running the initial `terraform apply` (your personal account or a bootstrap SA) needs the following on all three projects:
+
+- `roles/owner` or `roles/editor` + `roles/resourcemanager.projectIamAdmin`
+
+This is required because Terraform creates service accounts and grants them IAM roles. After the bootstrap, the CI/CD service accounts take over and manage their own permissions going forward.
+
+**Tools**
+
+- [Terraform](https://developer.hashicorp.com/terraform/install) >= 1.0.0
+- [gcloud CLI](https://cloud.google.com/sdk/docs/install)
+- [uv](https://docs.astral.sh/uv/getting-started/installation/)
+
+---
+
+#### Step 1 — Create the Terraform state bucket
+
+Terraform state is stored in GCS. The bucket must exist before running `terraform init`. Create it manually:
+
+```bash
+gcloud storage buckets create gs://<YOUR_CICD_PROJECT_ID>-terraform-state \
+  --project=<YOUR_CICD_PROJECT_ID> \
+  --location=us-central1 \
+  --uniform-bucket-level-access
+```
+
+Then update `deployment/terraform/backend.tf` to match:
+
+```hcl
+terraform {
+  backend "gcs" {
+    bucket = "<YOUR_CICD_PROJECT_ID>-terraform-state"
+    prefix = "agent-solution-ops/prod"
+  }
+}
+```
+
+#### Step 2 — Configure `deployment/terraform/variables.tf`
 
 All Terraform variables are stored as `default` values directly in `variables.tf` — no separate `.tfvars` file is needed (and `*.tfvars` is git-ignored anyway). Edit the placeholder defaults:
 
 ```hcl
 variable "prod_project_id"        { default = "your-production-project-id" }
 variable "staging_project_id"     { default = "your-staging-project-id" }
-variable "cicd_runner_project_id" { default = "your-cicd-project-id" }
+variable "cicd_runner_project_id" { default = "your-cicd-project-id" }   # often same as prod
 variable "repository_owner"       { default = "your-github-org-or-username" }
+variable "repository_name"        { default = "your-github-repo-name" }
+variable "region"                 { default = "us-central1" }
 variable "ge_app_staging"         { default = "your-ge-app-id-staging" }
 variable "ge_app_prod"            { default = "your-ge-app-id-prod" }
+```
+
+Also update the Cloud Build connection names to match what you'll create in Step 3:
+
+```hcl
+variable "host_connection_name"    { default = "your-cicd-project-connection-name" }
+variable "staging_connection_name" { default = "your-staging-project-connection-name" }
 ```
 
 To enable Gemini Enterprise OAuth registration, set the name of the Secret Manager secret that holds your OAuth client JSON:
 
 ```hcl
-variable "oauth_client_id_secret_name" { default = "client_secret" }
+variable "oauth_client_id_secret_name" { default = "your-oauth-secret-name" }
 ```
 
-Leave it as `""` to skip GE registration (useful for initial infrastructure bootstrapping).
+Leave it as `""` to skip GE registration during the initial bootstrap. You can enable it in a later apply once the infrastructure is stable.
 
-#### 2. Configure Cloud Build substitutions
+#### Step 3 — Set up Cloud Build GitHub connections
 
-Edit `.cloudbuild/staging.yaml` and `.cloudbuild/deploy-to-prod.yaml` substitutions:
+Two Cloud Build GitHub connections are required — one in each project that runs a pipeline trigger:
+
+| Project | Connection name (must match `variables.tf`) | Used by |
+|---|---|---|
+| `cicd_runner_project_id` | `host_connection_name` | PR checks + prod deploy trigger |
+| `staging_project_id` | `staging_connection_name` | Staging CD trigger |
+
+**To create each connection:**
+
+1. In the GCP Console, go to **Cloud Build → Repositories** for the target project
+2. Click **Create host connection**, choose GitHub, and follow the OAuth flow
+3. Once the connection exists, link your repository to it
+
+Alternatively, store a GitHub Personal Access Token (PAT) in Secret Manager and set `github_pat_secret_id` and `github_app_installation_id` in `variables.tf` — Terraform will create the connection automatically if `create_cb_connection = false`.
+
+#### Step 4 — Configure Cloud Build substitutions
+
+Edit the `substitutions` block at the bottom of `.cloudbuild/staging.yaml` and `.cloudbuild/deploy-to-prod.yaml`:
 
 | Substitution | Description |
 |---|---|
 | `_STAGING_PROJECT_ID` | GCP project ID for staging |
 | `_PROD_PROJECT_ID` | GCP project ID for production |
 | `_REGION` | GCP region (default: `us-central1`) |
-| `_APP_SERVICE_ACCOUNT_STAGING` | Service account email for the staged Agent Engine |
-| `_APP_SERVICE_ACCOUNT_PROD` | Service account email for the prod Agent Engine |
+| `_APP_SERVICE_ACCOUNT_STAGING` | Service account email for the staging Agent Engine (created by Terraform — set after first apply) |
+| `_APP_SERVICE_ACCOUNT_PROD` | Service account email for the prod Agent Engine (created by Terraform — set after first apply) |
 | `_AUTH_ID_STAGING` | GE authorization ID for staging (default: `staging-ui_oauth_token`) |
 | `_AUTH_ID_PROD` | GE authorization ID for prod (default: `prod-ui_oauth_token`) |
 | `_LOGS_BUCKET_NAME_STAGING` | GCS bucket for load test result export |
 
-The `AUTH_ID` substitutions must match the `${each.key}-${local.auth_id}` pattern in `deployment/terraform/gemini_enterprise.tf` (default: `staging-ui_oauth_token` / `prod-ui_oauth_token`).
+The `AUTH_ID` values must match the `${each.key}-${local.auth_id}` pattern in `deployment/terraform/gemini_enterprise.tf`.
 
-#### 3. Bootstrap Terraform (first time only)
+The service account emails follow the pattern `{project_name}-app@{project_id}.iam.gserviceaccount.com`. You can fill them in after the first `terraform apply` creates the accounts, or pre-compute them if you know the values.
+
+#### Step 5 — Bootstrap Terraform
+
+Authenticate with your personal account (which has the required permissions from the Prerequisites section):
+
+```bash
+gcloud auth application-default login
+```
+
+Then run the initial apply:
 
 ```bash
 cd deployment/terraform
@@ -207,23 +295,72 @@ terraform init
 terraform apply
 ```
 
-This creates all supporting infrastructure. The Agent Engine itself is created on the first Cloud Build run via `deploy_agents.py`.
+This creates all supporting infrastructure: service accounts, IAM bindings, Cloud Build triggers, Artifact Registry repositories, GCS buckets, and Cloud Run services.
 
-#### 4. Manual agent deploy (outside CI/CD)
+> **Note:** The Agent Engine itself is not created here. It is created on the first successful Cloud Build run by `deploy_agents.py`.
+
+#### Step 6 — Update Cloud Build substitutions with created service account emails
+
+After Step 5, retrieve the service account emails Terraform created and update the substitutions in the Cloud Build YAML files:
+
+```bash
+# Staging
+gcloud iam service-accounts list --project=<YOUR_STAGING_PROJECT_ID> --filter="displayName:Agent Service Account"
+
+# Prod
+gcloud iam service-accounts list --project=<YOUR_PROD_PROJECT_ID> --filter="displayName:Agent Service Account"
+```
+
+Update `_APP_SERVICE_ACCOUNT_STAGING` and `_APP_SERVICE_ACCOUNT_PROD` in the Cloud Build YAML files accordingly.
+
+#### Step 7 — Push to trigger CI/CD
+
+The pipelines are triggered by branch pushes:
+
+| Branch | Pipeline | File |
+|---|---|---|
+| `staging` | Build, deploy to staging, load test | `.cloudbuild/staging.yaml` |
+| `main` | Deploy to production (requires manual approval in Cloud Build) | `.cloudbuild/deploy-to-prod.yaml` |
+
+Push to `staging` to trigger the first automated deployment:
+
+```bash
+git push origin staging
+```
+
+---
+
+#### Ongoing IAM changes
+
+The CI/CD pipelines include their own IAM bindings as Terraform targets, so changes to `cicd_roles` in `variables.tf` are applied automatically on the next pipeline run — no manual intervention needed for own-project role changes.
+
+Cross-project IAM grants (defined in `cicd_sa_deployment_required_roles`) still require a manual local `terraform apply` because the staging SA cannot grant itself roles in the prod project:
+
+```bash
+cd deployment/terraform
+terraform apply -target=google_project_iam_member.staging_cicd_deployment_roles \
+                -target=google_project_iam_member.other_projects_roles
+```
+
+---
+
+#### Manual operations (outside CI/CD)
+
+**Deploy agent manually:**
 
 ```bash
 make deploy
 ```
 
-This runs `src/adk_agent/app_utils/deploy.py` directly with CLI args. Useful for one-off deploys from a developer machine.
+Runs `deployment/deploy_agents.py` directly. Useful for one-off deploys from a developer machine.
 
-#### 5. Register to Gemini Enterprise (manual)
+**Register to Gemini Enterprise manually:**
 
 ```bash
 make register-gemini-enterprise
 ```
 
-This is handled automatically by Terraform in CI/CD when `oauth_client_id_secret_name` is set, but the Makefile target is available for manual registration.
+Handled automatically by Terraform in CI/CD when `oauth_client_id_secret_name` is set. The Makefile target is available for manual registration or re-registration.
 
 ---
 

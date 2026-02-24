@@ -14,6 +14,7 @@
 # Author: Dave Wang
 
 import json
+from pathlib import Path
 from typing import Any, Optional, Literal
 
 import asyncio
@@ -26,6 +27,9 @@ import httpx
 from fastmcp import FastMCP
 
 from oauth_helper import OAuthFlow, OAuthConfig
+
+# Root .env is 4 levels up: weather_mcp_server/ -> mcp_servers/ -> src/ -> project root
+_ROOT_ENV = Path(__file__).resolve().parent.parent.parent.parent / ".env"
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 from starlette.requests import Request
@@ -36,7 +40,7 @@ class ServerSettings(BaseSettings):
     """Settings for the MCP Server."""
 
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+        env_file=str(_ROOT_ENV), env_file_encoding="utf-8", extra="ignore"
     )
 
     # GCP settings
@@ -58,7 +62,7 @@ class OAuthSettings(BaseSettings):
     """OAuth settings from environment."""
 
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+        env_file=str(_ROOT_ENV), env_file_encoding="utf-8", extra="ignore"
     )
 
     google_client_id: str = ""

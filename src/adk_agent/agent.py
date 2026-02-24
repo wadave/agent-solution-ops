@@ -16,7 +16,7 @@
 import os
 import sys  # Import sys for stderr
 
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 from fastapi.openapi.models import OAuth2, OAuthFlowAuthorizationCode, OAuthFlows
 from google.adk.agents import LlmAgent
 from google.adk.agents.readonly_context import ReadonlyContext
@@ -26,7 +26,7 @@ from google.adk.tools.mcp_tool.mcp_toolset import (
     StreamableHTTPConnectionParams,
 )
 
-load_dotenv()
+load_dotenv(find_dotenv(".env"))
 
 # Constants
 MIN_TOKEN_LENGTH = 20  # OAuth tokens are typically longer than 20 characters
