@@ -85,7 +85,8 @@ variable "cicd_roles" {
     "roles/cloudtrace.agent",
     "roles/artifactregistry.writer",
     "roles/cloudbuild.builds.builder",
-    "roles/serviceusage.serviceUsageAdmin"
+    "roles/serviceusage.serviceUsageAdmin",
+    "roles/run.admin"
   ]
 }
 
@@ -96,7 +97,8 @@ variable "cicd_sa_deployment_required_roles" {
     "roles/iam.serviceAccountUser",
     "roles/aiplatform.user",
     "roles/storage.admin",
-    "roles/serviceusage.serviceUsageAdmin"
+    "roles/serviceusage.serviceUsageAdmin",
+    "roles/run.admin"
   ]
 }
 
