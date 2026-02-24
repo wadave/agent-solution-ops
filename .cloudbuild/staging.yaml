@@ -19,7 +19,7 @@ steps:
     args:
       - "-c"
       - |
-        pip install uv==0.8.13 --user && uv sync --locked
+        pip install uv==0.8.13 --user && uv sync --locked --no-dev
     env:
       - 'PATH=/usr/local/bin:/usr/bin:~/.local/bin'
 
