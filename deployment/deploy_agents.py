@@ -145,10 +145,8 @@ def main():
         "GOOGLE_CLOUD_AGENT_ENGINE_ENABLE_TELEMETRY": "true",
         "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT": "true",
         "GOOGLE_GENAI_USE_VERTEXAI": "TRUE",
-        # Standard SDK env vars for project/region — required by vertexai.init() and
-        # GOOGLE_CLOUD_LOCATION is read at module import time in agent_engine_app.py.
-        "GOOGLE_CLOUD_PROJECT": project_id,
-        "GOOGLE_CLOUD_LOCATION": location,
+        # Note: GOOGLE_CLOUD_PROJECT and GOOGLE_CLOUD_LOCATION are reserved by
+        # Agent Engine and injected by the platform — do not set them here.
         "AUTH_ID": auth_id,
         "LOGS_BUCKET_NAME": logs_bucket_name,
     }
