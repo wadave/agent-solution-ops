@@ -421,3 +421,52 @@ The agent **automatically selects** the correct mode based on the `ENVIRONMENT` 
 | `GOOGLE_CLIENT_ID` | Yes | OAuth client ID for MCP server OAuth middleware. |
 | `GOOGLE_CLIENT_SECRET` | Yes | OAuth client secret. |
 | `OAUTH_REDIRECT_URI_PROD` | No | Production redirect URI. |
+
+---
+
+## Troubleshooting
+
+### Cloud Build fails with 403 downloading Python packages
+
+**Symptom:**
+
+```
+× Failed to download `python-dotenv==1.2.1`
+├─▶ Failed to fetch:
+│   `https://us-python.pkg.dev/artifact-foundry-prod/ah-3p-staging-python/...`
+╰─▶ HTTP status client error (403 Forbidden)
+```
+
+**Cause:**
+
+On machines with a corporate Python package proxy (e.g., Google's internal Airlock), the system `pip.conf` sets the PyPI index URL to an internal Artifact Registry mirror:
+
+```ini
+# /etc/pip.conf — managed by Airlock
+[global]
+index-url = https://us-python.pkg.dev/artifact-foundry-prod/ah-3p-staging-python/simple/
+```
+
+`uv lock` reads this configuration and bakes the internal mirror URLs into `uv.lock`. Cloud Build, running outside the corporate network, cannot access those internal URLs.
+
+**Fix:**
+
+Pin the uv index to PyPI in `pyproject.toml` using the `[[tool.uv.index]]` table with `default = true`. This is the only form that overrides the system `pip.conf` index in uv (the `[tool.uv]` `index-url` key does not):
+
+```toml
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple"
+default = true
+```
+
+After adding this, delete and regenerate the lockfile so all package URLs resolve to `files.pythonhosted.org`:
+
+```bash
+rm uv.lock
+uv lock
+git add pyproject.toml uv.lock
+git commit -m "fix: pin uv index to PyPI to prevent corporate mirror URLs in lockfile"
+```
+
+This is already configured in `pyproject.toml` in this project.

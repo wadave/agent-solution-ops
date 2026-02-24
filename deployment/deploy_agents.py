@@ -155,7 +155,7 @@ def main():
     if mcp_url:
         env_vars["MCP_URL"] = mcp_url
 
-    with tempfile.TemporaryDirectory() as tmpdir:
+    with tempfile.TemporaryDirectory(dir=".") as tmpdir:
         clean_pkg = os.path.join(tmpdir, "adk_agent")
         _copy_source_clean("./src/adk_agent", clean_pkg)
 
