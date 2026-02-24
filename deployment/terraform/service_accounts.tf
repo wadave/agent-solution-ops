@@ -18,6 +18,14 @@ resource "google_service_account" "cicd_runner_sa" {
   project      = var.cicd_runner_project_id
   depends_on   = [resource.google_project_service.cicd_services, resource.google_project_service.deploy_project_services]
 }
+
+# Dedicated CICD SA for the staging CD pipeline trigger (runs in staging_project_id).
+resource "google_service_account" "cicd_runner_sa_staging" {
+  account_id   = "${var.project_name}-cd"
+  display_name = "CICD Runner SA (Staging CD)"
+  project      = var.staging_project_id
+  depends_on   = [resource.google_project_service.cicd_services, resource.google_project_service.deploy_project_services]
+}
 # Agent service account
 resource "google_service_account" "app_sa" {
   for_each = local.deploy_project_ids

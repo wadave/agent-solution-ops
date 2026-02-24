@@ -43,7 +43,13 @@ variable "region" {
 }
 
 variable "host_connection_name" {
-  description = "Name of the host connection to create in Cloud Build"
+  description = "Name of the host connection to create in Cloud Build (used by cicd_runner_project_id for PR checks and prod deploy)"
+  type        = string
+
+}
+
+variable "staging_connection_name" {
+  description = "Name of the Cloud Build connection in the staging project for the CD pipeline trigger"
   type        = string
 
 }

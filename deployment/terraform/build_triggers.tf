@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# a. Create PR checks trigger
+# a. Create PR checks trigger (runs in cicd_runner_project_id = dw-genai-pre-prod)
 resource "google_cloudbuild_trigger" "pr_checks" {
   name            = "pr-${var.project_name}"
   project         = var.cicd_runner_project_id
@@ -21,7 +21,7 @@ resource "google_cloudbuild_trigger" "pr_checks" {
   service_account = resource.google_service_account.cicd_runner_sa.id
 
   repository_event_config {
-    repository = "projects/${var.cicd_runner_project_id}/locations/${var.region}/connections/${var.host_connection_name}/repositories/${var.repository_name}"
+    repository = google_cloudbuildv2_repository.repo.id
     pull_request {
       branch = "^(main|staging)$"
     }
@@ -37,23 +37,22 @@ resource "google_cloudbuild_trigger" "pr_checks" {
   ]
   include_build_logs = "INCLUDE_BUILD_LOGS_WITH_STATUS"
   depends_on = [
-    resource.google_project_service.cicd_services, 
-    resource.google_project_service.deploy_project_services, 
-    google_cloudbuildv2_connection.github_connection, 
-    google_cloudbuildv2_repository.repo
+    resource.google_project_service.cicd_services,
+    resource.google_project_service.deploy_project_services,
+    google_cloudbuildv2_repository.repo,
   ]
 }
 
-# b. Create CD pipeline trigger
+# b. Create CD pipeline trigger (runs in staging_project_id = dw-genai-dev)
 resource "google_cloudbuild_trigger" "cd_pipeline" {
   name            = "cd-${var.project_name}"
-  project         = var.cicd_runner_project_id
+  project         = var.staging_project_id
   location        = var.region
-  service_account = resource.google_service_account.cicd_runner_sa.id
+  service_account = google_service_account.cicd_runner_sa_staging.id
   description     = "Trigger for CD pipeline"
 
   repository_event_config {
-    repository = "projects/${var.cicd_runner_project_id}/locations/${var.region}/connections/${var.host_connection_name}/repositories/${var.repository_name}"
+    repository = google_cloudbuildv2_repository.repo_staging.id
     push {
       branch = "staging"
     }
@@ -69,22 +68,21 @@ resource "google_cloudbuild_trigger" "cd_pipeline" {
   ]
   include_build_logs = "INCLUDE_BUILD_LOGS_WITH_STATUS"
   substitutions = {
-    _STAGING_PROJECT_ID            = var.staging_project_id
-    _LOGS_BUCKET_NAME_STAGING      = resource.google_storage_bucket.logs_data_bucket[var.staging_project_id].name
-    _APP_SERVICE_ACCOUNT_STAGING   = google_service_account.app_sa["staging"].email
-    _AUTH_ID_STAGING               = "staging-ui_oauth_token"
-    _REGION                        = var.region
+    _STAGING_PROJECT_ID          = var.staging_project_id
+    _LOGS_BUCKET_NAME_STAGING    = resource.google_storage_bucket.logs_data_bucket[var.staging_project_id].name
+    _APP_SERVICE_ACCOUNT_STAGING = google_service_account.app_sa["staging"].email
+    _AUTH_ID_STAGING             = "staging-ui_oauth_token"
+    _REGION                      = var.region
   }
   depends_on = [
-    resource.google_project_service.cicd_services, 
-    resource.google_project_service.deploy_project_services, 
-    google_cloudbuildv2_connection.github_connection, 
-    google_cloudbuildv2_repository.repo
+    resource.google_project_service.cicd_services,
+    resource.google_project_service.deploy_project_services,
+    google_cloudbuildv2_repository.repo_staging,
+    google_service_account.cicd_runner_sa_staging,
   ]
-
 }
 
-# c. Create Deploy to production trigger
+# c. Create Deploy to production trigger (runs in cicd_runner_project_id = dw-genai-pre-prod)
 resource "google_cloudbuild_trigger" "deploy_to_prod_pipeline" {
   name            = "deploy-${var.project_name}"
   project         = var.cicd_runner_project_id
@@ -92,7 +90,7 @@ resource "google_cloudbuild_trigger" "deploy_to_prod_pipeline" {
   description     = "Trigger for deployment to production"
   service_account = resource.google_service_account.cicd_runner_sa.id
   repository_event_config {
-    repository = "projects/${var.cicd_runner_project_id}/locations/${var.region}/connections/${var.host_connection_name}/repositories/${var.repository_name}"
+    repository = google_cloudbuildv2_repository.repo.id
     push {
       branch = "main"
     }
@@ -103,17 +101,15 @@ resource "google_cloudbuild_trigger" "deploy_to_prod_pipeline" {
     approval_required = true
   }
   substitutions = {
-    _PROD_PROJECT_ID             = var.prod_project_id
-    _LOGS_BUCKET_NAME_PROD       = resource.google_storage_bucket.logs_data_bucket[var.prod_project_id].name
-    _APP_SERVICE_ACCOUNT_PROD    = google_service_account.app_sa["prod"].email
-    _AUTH_ID_PROD                = "prod-ui_oauth_token"
-    _REGION                      = var.region
+    _PROD_PROJECT_ID          = var.prod_project_id
+    _LOGS_BUCKET_NAME_PROD    = resource.google_storage_bucket.logs_data_bucket[var.prod_project_id].name
+    _APP_SERVICE_ACCOUNT_PROD = google_service_account.app_sa["prod"].email
+    _AUTH_ID_PROD             = "prod-ui_oauth_token"
+    _REGION                   = var.region
   }
   depends_on = [
-    resource.google_project_service.cicd_services, 
-    resource.google_project_service.deploy_project_services, 
-    google_cloudbuildv2_connection.github_connection, 
-    google_cloudbuildv2_repository.repo
+    resource.google_project_service.cicd_services,
+    resource.google_project_service.deploy_project_services,
+    google_cloudbuildv2_repository.repo,
   ]
-
 }

@@ -77,3 +77,44 @@ resource "google_service_account_iam_member" "cicd_run_invoker_account_user" {
   member             = "serviceAccount:${resource.google_service_account.cicd_runner_sa.email}"
   depends_on         = [resource.google_project_service.cicd_services, resource.google_project_service.deploy_project_services]
 }
+
+# Staging CICD SA: grant cicd_roles in staging_project_id
+resource "google_project_iam_member" "staging_cicd_project_roles" {
+  for_each = toset(var.cicd_roles)
+
+  project    = var.staging_project_id
+  role       = each.value
+  member     = "serviceAccount:${google_service_account.cicd_runner_sa_staging.email}"
+  depends_on = [resource.google_project_service.cicd_services, resource.google_project_service.deploy_project_services]
+}
+
+# Staging CICD SA: grant deployment roles in staging and prod projects
+resource "google_project_iam_member" "staging_cicd_deployment_roles" {
+  for_each = {
+    for pair in setproduct(keys(local.deploy_project_ids), var.cicd_sa_deployment_required_roles) :
+    "${pair[0]}-${pair[1]}" => {
+      project_id = local.deploy_project_ids[pair[0]]
+      role       = pair[1]
+    }
+  }
+
+  project    = each.value.project_id
+  role       = each.value.role
+  member     = "serviceAccount:${google_service_account.cicd_runner_sa_staging.email}"
+  depends_on = [resource.google_project_service.cicd_services, resource.google_project_service.deploy_project_services]
+}
+
+# Staging CICD SA: allow self-impersonation
+resource "google_service_account_iam_member" "staging_cicd_token_creator" {
+  service_account_id = google_service_account.cicd_runner_sa_staging.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:${google_service_account.cicd_runner_sa_staging.email}"
+  depends_on         = [resource.google_project_service.cicd_services, resource.google_project_service.deploy_project_services]
+}
+
+resource "google_service_account_iam_member" "staging_cicd_account_user" {
+  service_account_id = google_service_account.cicd_runner_sa_staging.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.cicd_runner_sa_staging.email}"
+  depends_on         = [resource.google_project_service.cicd_services, resource.google_project_service.deploy_project_services]
+}
