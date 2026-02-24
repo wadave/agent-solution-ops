@@ -89,6 +89,7 @@ variable "cicd_roles" {
     "roles/run.admin",
     "roles/resourcemanager.projectIamAdmin",
     "roles/secretmanager.secretAccessor",
+    "roles/secretmanager.viewer",
   ]
 }
 
