@@ -48,6 +48,7 @@ steps:
     args:
       - "apply"
       - "-auto-approve"
+      - "-refresh=false"
       - "-var=mcp_image_tag=${COMMIT_SHA}"
       - "-target=google_artifact_registry_repository.mcp_repo[\"prod\"]"
       - "-target=google_cloud_run_v2_service.mcp_server[\"prod\"]"
