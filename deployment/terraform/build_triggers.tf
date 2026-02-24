@@ -29,6 +29,7 @@ resource "google_cloudbuild_trigger" "pr_checks" {
 
   filename = ".cloudbuild/pr_checks.yaml"
   included_files = [
+    ".cloudbuild/**",
     "src/adk_agent/**",
     "src/mcp_servers/**",
     "tests/**",
@@ -60,6 +61,7 @@ resource "google_cloudbuild_trigger" "cd_pipeline" {
 
   filename = ".cloudbuild/staging.yaml"
   included_files = [
+    ".cloudbuild/**",
     "src/adk_agent/**",
     "src/mcp_servers/**",
     "tests/**",
