@@ -86,7 +86,8 @@ variable "cicd_roles" {
     "roles/artifactregistry.writer",
     "roles/cloudbuild.builds.builder",
     "roles/serviceusage.serviceUsageAdmin",
-    "roles/run.admin"
+    "roles/run.admin",
+    "roles/resourcemanager.projectIamAdmin"
   ]
 }
 
