@@ -1,321 +1,286 @@
-# tmpl-a2a-agents-example
+# ADK Weather Agent with OAuth Authentication
 
-![Lifecycle: General Availability](https://img.shields.io/badge/Lifecycle-Generally_Available-brightgreen?style=for-the-badge)
+Complete guide for setting up an ADK agent with dual-mode OAuth authentication to access MCP (Model Context Protocol) weather services.
 
-
-- [tmpl-a2a-agents-example](#tmpl-a2a-agents-example)
-- [1. Overview](#1-overview)
-- [2. Prerequisites](#2-prerequisites)
-  - [2.1 Development Environment](#21-development-environment)
-  - [2.2 Optional Feature Dependencies](#22-optional-feature-dependencies)
-    - [2.2.1 - (Optional) Agent Engine NextJS UI (Agent Hub)](#221---optional-agent-engine-nextjs-ui-agent-hub)
-    - [2.2.2 - (Optional) Gemini Enterprise Agent Registration/Integration](#222---optional-gemini-enterprise-agent-registrationintegration)
-- [3. Using this Example Solution Bundle](#3-using-this-example-solution-bundle)
-  - [3.1. Opening the Repo in a Dev Container](#31-opening-the-repo-in-a-dev-container)
-  - [3.2. Logging into Google Cloud SDK for CLI Commands and Application Default Credentials](#32-logging-into-google-cloud-sdk-for-cli-commands-and-application-default-credentials)
-  - [3.3. Create and Deploying the Base Terraform Assets](#33-create-and-deploying-the-base-terraform-assets)
-- [4. Post-Deploying Repository-level Operations](#4-post-deploying-repository-level-operations)
-  - [4.1. Updating Infrastructure Resources](#41-updating-infrastructure-resources)
-  - [4.2. Upgrading Terraform Modules](#42-upgrading-terraform-modules)
-  - [4.3. Synchronizing Changes to Terraform Config (*config.tfvars*)](#43-synchronizing-changes-to-terraform-config-configtfvars)
-    - [4.3.1. Persisting Changes to config.tfvars](#431-persisting-changes-to-configtfvars)
-    - [4.3.2. Fetching/Updating Changes to config.tfvars](#432-fetchingupdating-changes-to-configtfvars)
-      - [Refreshing Changes to config.tfvars](#refreshing-changes-to-configtfvars)
-      - [Deploying config change relates resource updates](#deploying-config-change-relates-resource-updates)
-  - [4.4. Destroying Infrastructure Modules](#44-destroying-infrastructure-modules)
-  - [4.5. Resetting Terraform, Python, and NodeJS Services State](#45-resetting-terraform-python-and-nodejs-services-state)
-  - [4.6. Visualizing the High-level Module Dependencies](#46-visualizing-the-high-level-module-dependencies)
-- [5. License](#5-license)
-
-# 1. Overview
-
-The following diagram provides a comprehensive overview of the system architecture, including all agents, UIs, tools, and infrastructure components, and their relationships.
+## High-Level Component Diagram
 
 ```mermaid
-graph TD
-    subgraph "User Interfaces"
-        A[NextJS UI - Optional]
-        B[Gemini Enterprise UI - Optional]
+graph TB
+    subgraph "Google Cloud Platform"
+        subgraph "User Interface"
+        UI["Gemini Enterprise UI"]
+        end
+        subgraph "Gemini Enterprise"
+            AS["Gemini Enterprise Engine"]
+            RE["Agent Engine<br/>ADK Agent"]
+        end
+
+        subgraph "Cloud Run"
+            MCP["Weather MCP Server<br/>FastMCP + OAuth"]
+        end
+
     end
 
-    subgraph "Agents"
-        C[Root Agent]
-    end
+    subgraph "External Services"
+            OAUTH["Google OAuth2.0
+            or 3rd Party Provider"]
+            NWS["NWS Weather API"]
+        end
 
-    subgraph "Local (Folder) Sub-Agents"
-        I[Weather Agent]
-    end
+    UI -->|User Query| AS
+    AS -->|Invoke Agent| RE
+    RE -->|MCP Tool Call| MCP
+    MCP -->|Fetch Weather| NWS
 
-    subgraph "Remote (A2A) Sub-Agents"
-        D[Joker Agent]
-    end
+    AS -.->|OAuth Flow| OAUTH
+    OAUTH -.->|Tokens| AS
+    AS -.->|Pass Token| MCP
 
-    subgraph "Tools"
-        E[get_user_email tool]
-    end
-
-    subgraph "Infrastructure"
-        F[Agent Card GCS Bucket]
-        G[Docker Repository]
-        H[Service Accounts]
-    end
-
-    A -- "interacts with" --> C
-    B -- "interacts with" --> C
-    C -- "uses" --> E
-    C -- "uses" --> I
-    C -- "discovers" --> F
-    D -- "publishes to" --> F
-    A -- "pulls image from" --> G
-    D -- "pulls image from" --> G
-    A -- "uses" --> H
-    B -- "uses" --> H
-    C -- "uses" --> H
-    D -- "uses" --> H
+    style UI fill:#e1f5ff,stroke:#333,stroke-width:2px,color:#000
+    style AS fill:#fff4e1,stroke:#333,stroke-width:2px,color:#000
+    style RE fill:#f0e1ff,stroke:#333,stroke-width:2px,color:#000
+    style MCP fill:#e1ffe1,stroke:#333,stroke-width:2px,color:#000
+    style OAUTH fill:#ffe1e1,stroke:#333,stroke-width:2px,color:#000
+    style NWS fill:#f5f5f5,stroke:#333,stroke-width:2px,color:#000
 ```
 
-This diagram illustrates the overall system architecture. Users can interact with the system through either the `NextJS UI` or the `Gemini Enterprise UI`. Both UIs communicate with the `Root Agent`, which acts as the central orchestrator. The `Root Agent` has a `get_user_email` tool and discovers folder-based sub-agents, such as the `Weather Agent` automatically.  It also discovers remote agents, such as the `Joker Agent`, by reading their agent cards from a GCS bucket. The `Joker Agent` publishes its agent card to this bucket. All services are containerized and their images are stored in a central `Docker Repository`. Each component in the system uses a dedicated `Service Account` for secure access control.
+**Key Feature:** The agent automatically switches between development and production authentication modes based on the `ENVIRONMENT` variable:
+- **Development**: OAuth2Auth with client credentials (browser-based OAuth flow)
+- **Production**: Token retrieval from Gemini Enterprise context via `header_provider` — no `auth_scheme` is passed, ensuring the credential manager is bypassed entirely
 
+**Use Cases:**
+- Local testing with `adk web`
+- Deployed agents on Vertex AI Agent Engine registered to Gemini Enterprise
 
-# 2. Prerequisites
+---
 
-## 2.1 Development Environment
+## Quick Start
 
-To use this base template's full capabilities, you must complete the following:
+### Prerequisites
+- Python 3.12+
+- Google Cloud Project with OAuth credentials
+- uv package manager: [Install uv](https://docs.astral.sh/uv/getting-started/installation/)
+- Project dependencies: `uv sync`
 
-  - Have a (preferrably Debian-based) Linux Development environment
-  - [Install the Google Cloud SDK and gcloud CLI tool](https://docs.cloud.google.com/sdk/docs/install)
-  - Have Visual Studio Code (VSCode) IDE with the following Extensions enabled:
-    - [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
-    - (if remote dev) Remote - SSH
-    - (if remote dev) Remote - Tunnels
-    - (if remote dev) Remote Development
-    - (if remote dev) Remote Explorer
-  - Have a Google Cloud Platform (GCP) Project, or [create a new one](https://developers.google.com/workspace/guides/create-project).
+### 1. Clone and Setup
 
-## 2.2 Optional Feature Dependencies
-
-To use some optional features in this repository, see the related section below for prerequisites.
-
-### 2.2.1 - (Optional) Agent Engine NextJS UI (Agent Hub)
-
-This repository includes a NextJS UI that deploys to Cloud Run and provides a UI to interacting with an Agent deployed to Agent Engine.
-
-![NextJS UI](/docs/agent-hub-nextjsui.png)
-
- - Configure your GCP Project's OAuth Consent Screen.  See [Configuring OAuth Consent Screen](/docs/assets/oauth-consent/README.md)
- - Create OAuth Client Credentials and save the OAuth Client ID as a Secret in Secret Manager.  See [Creating OAuth Client Credentials](/docs/assets/oauth-creds/README.md)
- - Store the OAuth Client ID as a Secret in Secret Manager.  See [Creating OAuth Client ID as a Secret in Secret Manager](/docs/assets/oauth-client-id-secret/README.md)
- - Uncomment the Terraform resources in `iac/modules_4_nextjs_agent_engine_ui.tf`
-
-### 2.2.2 - (Optional) Gemini Enterprise Agent Registration/Integration
-
-This repository includes resources to integrate the Root agent deployed on Agent Engine with Gemini Enterprise.
-
-![Gemini Enterprise](/docs/gemini-enterprise-ui.png)
-
- - Configure your GCP Project's OAuth Consent Screen.  See [Configuring OAuth Consent Screen](/docs/assets/oauth-consent/README.md)
- - Create OAuth Client Credentials and save the OAuth Client ID as a Secret in Secret Manager.  See [Creating OAuth Client Credentials](/docs/assets/oauth-creds/README.md)
- - Store the OAuth Client ID and OAuth Client Secret as Secrets in Secret Manager.  See [Creating OAuth Client ID as a Secret in Secret Manager](/docs/assets/oauth-client-id-secret/README.md)
- - Create a Gemini Enterprise App, and add its ID to the `gemini_enterprise_app_id` input variable in `iac/config.tfvars` (any time after running `make init` during onboarding)
- - Uncomment the Terraform resources in `iac/modules_7_gemini_enterprise_root_agent.tf`
-
-# 3. Using this Example Solution Bundle
-
-
-## 3.1. Opening the Repo in a Dev Container
-
-Let's start by opening the repo with your VSCode development environment.
-
-Upon opening the repo, you should receive a pop-up noticing that this repository supports devcontainers.  Select **Reopen in Container** to launch the new development container environment.
-
-![Clone with SSH](/docs/reopen-container.png "Clone with SSH")
-
-The first time creation of the development container might take up to 5 minutes.  You can watch the progress by clicking the show logs in the dev container progress widget.
-
-Future logins will benefit from re-using the container and occur almost as quickly as standard SSH sessions.
-
-## 3.2. Logging into Google Cloud SDK for CLI Commands and Application Default Credentials
-
-Now that we're inside the dev container environment, we need to authenticate your gcloud environment.
-
-This is accomplished by executing a single command:
-
-```
-cd iac && make login
+```bash
+cp src/adk_agent/.env.example src/adk_agent/.env
 ```
 
-## 3.3. Create and Deploying the Base Terraform Assets
+### 2. Configure Google OAuth
 
-Now, deploy the bsae terraform assets by using special make targets.
+Go to: https://console.cloud.google.com/apis/credentials
 
-From the **iac** directory:
+Click your OAuth 2.0 Client ID and add the redirect URIs below.
+
+**For Development:**
 ```
-make init
-```
-
-This will initiaze a new onboarding configuration, or fetch an existing one if someone has already done the first time Terraform deployment.  After make init, a file **config.tfvars** will be created in the **iac** directory where you can customize any elements before deploying the assets to the GCP environment.
-
-If this is your first time onboarding this project, you'll be prompted a few questions, and the shared Terraform state will be stored on a new Google Cloud Storage (GCS) bucket named based on your application namespace.  This ensures additional team members can onboard and have a shared view of Terraform state when preparing or making changes.
-
-Here is valid example output **config.tfvars**:
-
-```
-# GCP Application Project
-app_namespace               = "hellow-v001"
-project_id                  = "prj-advcomp1"
-region                      = "us-central1"
-agents_region               = "global"
-bq_region                   = "us"
-env_sas                     = []
-test_user_emails            = []
-oauth_client_id_secret_name = "OAUTH_CLIENT_ID"
+http://127.0.0.1:8000/dev-ui/
+http://localhost:8000/dev-ui/
 ```
 
- - The important constraints on the parameters above are:
-   - \<app_namespace\> will be prefixed to all resources as a namespace.  It MUST:
-        - Be < 15 characters to prevent added suffixes from exceeding certain GCP component name limits, dedicated service account names.
-        - Cannot contain "google" or any variation include "g00gl3".
-        - May only contain lowercase letters, numbers, and hyphens, and must begin with a letter and end with a letter or number.
-
-In most cases the generated file won't need editting.
-
-Now go ahead and deploy the assets:
-
-From the **iac** directory:
+**For Production (Gemini Enterprise):**
 ```
-make plan
-make happen
+https://vertexaisearch.cloud.google.com/oauth-redirect
 ```
 
-The deployment should completed within 5 minutes.
+### 3. Set Environment Variables
 
+Edit `src/adk_agent/.env`:
 
-# 4. Post-Deploying Repository-level Operations
+```bash
+# Environment — set to 'development' for local testing.
+# Any value other than 'development' activates production mode.
+ENVIRONMENT=development
 
-## 4.1. Updating Infrastructure Resources
+# Google Cloud
+GOOGLE_CLOUD_PROJECT="your-project-id"
+GOOGLE_CLOUD_LOCATION="us-central1"
 
-When adding or updating Terraform resources, use **make plan** and **make happen** to push changes into your GCP infrastructure, similar to the initial deployment.
+# MCP Server URL (Cloud Run service URL + /mcp)
+MCP_URL='https://your-mcp-server.run.app/mcp'
 
-From within the **iac** directory:
+# OAuth Credentials (required for development mode only)
+GOOGLE_CLIENT_ID='your-client-id'
+GOOGLE_CLIENT_SECRET='your-client-secret'
 
-```
-make plan
-```
+# OAuth Redirect URIs
+OAUTH_REDIRECT_URI_DEV='http://127.0.0.1:8000/dev-ui/'
+OAUTH_REDIRECT_URI_PROD='https://vertexaisearch.cloud.google.com/oauth-redirect'
 
-After successfully executing the above:
-
-```
-make happen
-```
-
-Once executed your changes will be live.
-
-
-## 4.2. Upgrading Terraform Modules
-
-When adding or updating Terraform resources, use **make upgrade**, followed by **make plan** and **make happen** to upgrade modules, and push any related changes into your GCP infrastructure, similar to the initial deployment and updating resources.
-
-From within the **iac** directory:
- - Upgrade the modules
- ```
- make upgrade
- ```
- - Push any upgrade-related changes
-```
-make plan
-make happen
+# Auth ID — must match the authorization registered in Gemini Enterprise
+AUTH_ID='staging-ui_oauth_token'
 ```
 
-Any changes will be live once complete.
+### 4. Run Locally
 
-
-## 4.3. Synchronizing Changes to Terraform Config (*config.tfvars*)
-
-If you happen to make changes to config.tfvars additional actions are required to persist the changes, and refresh them with other team members.
-
-### 4.3.1. Persisting Changes to config.tfvars
-
-From within the **iac** directory:
- ```
- make config-push
- ```
-
-### 4.3.2. Fetching/Updating Changes to config.tfvars
-
-#### Refreshing Changes to config.tfvars
-
-From within the **iac** directory:
- ```
- make config-pull
- ```
-
-#### Deploying config change relates resource updates
-
-From within the **iac** directory:
-```
-make plan
-make happen
+```bash
+make playground
 ```
 
-All will be synchronized after the above commands finish.
+Visit http://localhost:8501 and try: "What's the weather in Los Angeles?"
 
+---
 
-## 4.4. Destroying Infrastructure Modules
+## Deployment
 
-When finished with the deployment, use **make disappear** to remove resources from your GCP infrastructure.
+### Architecture
 
-From within the **iac** directory:
+Deployment is split across two tools, each owning what it is best suited for:
+
+| Layer | Tool | Resources |
+|---|---|---|
+| Infrastructure | Terraform | Cloud Run (MCP server), Artifact Registry, GCS buckets, IAM, Gemini Enterprise OAuth registration |
+| Agent Engine | `deployment/deploy_agents.py` | Vertex AI Agent Engine (create + update) |
+
+Terraform manages registration but **not** the Agent Engine source/env-vars. `deploy_agents.py` is the single owner of that resource — it creates it on first run and updates source code and env vars on every subsequent run. This avoids the split-ownership problem where two tools fight over env vars.
+
+### CI/CD Pipeline
+
+Push to the configured branch triggers Cloud Build:
+
 ```
-make disappear
-```
-
-Once executed your changes will be live.
-
-
-## 4.5. Resetting Terraform, Python, and NodeJS Services State
-
-If you ever need to wipe the terraform state (without removing any resources) and all venvs, node modules, etc. and re-onboard into the environment, use this process to hard reset.
-
-From within the **iac** directory:
-```
-make clean
-```
-
-The above command will clean all local state for Terraform, Python, NodeJS, etc.
-
-To re-onboard:
-
-From within the **iac** directory:
-```
-make plan
-make happen
-```
-
-Once finished your environment will be reset.
-
-## 4.6. Visualizing the High-level Module Dependencies
-
-For complete solutions, visualizing Terraform resources isn't very helpful when there are several hundreds of low-level resources.  Most important abstractions should be custom modules.  Use the **make mod-graph** command to create a visualization of only custom modules, as shown in the image below.
-
-![Terraform Dependencies](/docs/terraform_dependencies.png "Terraform Dependencies")
-
-From within the **iac** directory:
-```
-make mod-graph
+build MCP Docker image
+        ↓
+push image to Artifact Registry
+        ↓
+terraform apply  ──── Cloud Run MCP server
+                 ──── GE OAuth authorization
+                 ──── GE agent registration
+        ↓
+extract Cloud Run URL  (gcloud run services describe)
+        ↓
+deploy_agents.py  ──── Agent Engine (create or update)
+                       env vars: MCP_URL, AUTH_ID, LOGS_BUCKET_NAME, telemetry
+        ↓
+load test  (staging only)
+        ↓
+trigger prod pipeline  (staging only)
 ```
 
-The output will be stored in the **docs** directory.
+### One-time Setup
 
-Still, if you wish to see a full graph of all low-level Terraform resources, you can use **make graph**
+#### 1. Configure `deployment/terraform/variables.tf`
 
-From within the **iac** directory:
+All Terraform variables are stored as `default` values directly in `variables.tf` — no separate `.tfvars` file is needed (and `*.tfvars` is git-ignored anyway). Edit the placeholder defaults:
+
+```hcl
+variable "prod_project_id"        { default = "your-production-project-id" }
+variable "staging_project_id"     { default = "your-staging-project-id" }
+variable "cicd_runner_project_id" { default = "your-cicd-project-id" }
+variable "repository_owner"       { default = "your-github-org-or-username" }
+variable "ge_app_staging"         { default = "your-ge-app-id-staging" }
+variable "ge_app_prod"            { default = "your-ge-app-id-prod" }
 ```
-make graph
+
+To enable Gemini Enterprise OAuth registration, set the name of the Secret Manager secret that holds your OAuth client JSON:
+
+```hcl
+variable "oauth_client_id_secret_name" { default = "client_secret" }
 ```
-The output will be stored in the **docs** directory.
 
+Leave it as `""` to skip GE registration (useful for initial infrastructure bootstrapping).
 
-# 5. License
+#### 2. Configure Cloud Build substitutions
 
-This project is licensed under the standard Google Apache-2.0 license.
+Edit `.cloudbuild/staging.yaml` and `.cloudbuild/deploy-to-prod.yaml` substitutions:
+
+| Substitution | Description |
+|---|---|
+| `_STAGING_PROJECT_ID` | GCP project ID for staging |
+| `_PROD_PROJECT_ID` | GCP project ID for production |
+| `_REGION` | GCP region (default: `us-central1`) |
+| `_APP_SERVICE_ACCOUNT_STAGING` | Service account email for the staged Agent Engine |
+| `_APP_SERVICE_ACCOUNT_PROD` | Service account email for the prod Agent Engine |
+| `_AUTH_ID_STAGING` | GE authorization ID for staging (default: `staging-ui_oauth_token`) |
+| `_AUTH_ID_PROD` | GE authorization ID for prod (default: `prod-ui_oauth_token`) |
+| `_LOGS_BUCKET_NAME_STAGING` | GCS bucket for load test result export |
+
+The `AUTH_ID` substitutions must match the `${each.key}-${local.auth_id}` pattern in `deployment/terraform/gemini_enterprise.tf` (default: `staging-ui_oauth_token` / `prod-ui_oauth_token`).
+
+#### 3. Bootstrap Terraform (first time only)
+
+```bash
+cd deployment/terraform
+terraform init
+terraform apply
+```
+
+This creates all supporting infrastructure. The Agent Engine itself is created on the first Cloud Build run via `deploy_agents.py`.
+
+#### 4. Manual agent deploy (outside CI/CD)
+
+```bash
+make deploy
+```
+
+This runs `src/adk_agent/app_utils/deploy.py` directly with CLI args. Useful for one-off deploys from a developer machine.
+
+#### 5. Register to Gemini Enterprise (manual)
+
+```bash
+make register-gemini-enterprise
+```
+
+This is handled automatically by Terraform in CI/CD when `oauth_client_id_secret_name` is set, but the Makefile target is available for manual registration.
+
+---
+
+## What This Project Does
+
+This project demonstrates how to build an ADK agent that:
+
+1. **Uses OAuth 2.0 authentication** to access protected MCP servers
+2. **Automatically switches** between development and production authentication modes
+3. **Handles OAuth flows differently** for local testing vs. Gemini Enterprise deployment
+4. **Calls MCP tools** (weather forecasts) with authenticated requests
+
+### Authentication Architecture
+
+**Development Mode (Local Testing):**
+```
+User → ADK Web UI → Agent (OAuth2Auth) → Google OAuth → Token → MCP Server → Weather API
+```
+- Uses `auth_scheme` and `auth_credential` to trigger OAuth flow
+- ADK manages token storage and refresh automatically
+
+**Production Mode (Gemini Enterprise):**
+```
+User → Gemini Enterprise UI → Agent (header_provider) → Context Token → MCP Server → Weather API
+```
+- `McpToolset` is created with `header_provider=mcp_header_provider` and **no** `auth_scheme`
+- Omitting `auth_scheme` ensures `_credentials_manager = None` in `MCPTool`, so the credential check is skipped and `header_provider` is called directly on every request
+- `mcp_header_provider` reads the OAuth token from `session.state` keyed by `AUTH_ID`
+- Token is injected into MCP requests via `Authorization: Bearer` header
+
+The agent **automatically selects** the correct mode based on the `ENVIRONMENT` variable (`"development"` → dev mode, anything else → production mode).
+
+---
+
+## Environment Variables Reference
+
+### Agent (`src/adk_agent/.env`)
+
+| Variable | Required | Description |
+|---|---|---|
+| `ENVIRONMENT` | No | `development` enables dev OAuth flow. Default: `deployment` (production mode). |
+| `MCP_URL` | Yes | Full URL of the MCP server including `/mcp` path. |
+| `AUTH_ID` | Yes | Gemini Enterprise authorization ID (e.g. `staging-ui_oauth_token`). |
+| `GOOGLE_CLIENT_ID` | Dev only | OAuth client ID for browser-based flow. |
+| `GOOGLE_CLIENT_SECRET` | Dev only | OAuth client secret for browser-based flow. |
+| `GOOGLE_CLOUD_PROJECT` | No | GCP project ID. |
+| `GOOGLE_CLOUD_LOCATION` | No | GCP region. Default: `us-central1`. |
+| `OAUTH_REDIRECT_URI_DEV` | No | Dev redirect URI. Default: `http://127.0.0.1:8000/dev-ui/`. |
+| `OAUTH_REDIRECT_URI_PROD` | No | Prod redirect URI. Default: `https://vertexaisearch.cloud.google.com/oauth-redirect`. |
+| `DEBUG_CONTEXT` | No | Set to `true` to dump full session context to stderr on each MCP call. |
+| `LOGS_BUCKET_NAME` | No | GCS bucket for artifact storage. Default: none (uses in-memory). |
+
+### MCP Server (`src/mcp_servers/weather_mcp_server/.env`)
+
+| Variable | Required | Description |
+|---|---|---|
+| `PROJECT_ID` | Yes | GCP project ID. |
+| `GOOGLE_CLIENT_ID` | Yes | OAuth client ID for MCP server OAuth middleware. |
+| `GOOGLE_CLIENT_SECRET` | Yes | OAuth client secret. |
+| `OAUTH_REDIRECT_URI_PROD` | No | Production redirect URI. |

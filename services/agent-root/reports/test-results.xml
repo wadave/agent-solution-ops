@@ -1,1 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="76.274" timestamp="2026-01-30T01:34:20.883784+00:00" hostname="ranvil.c.googlers.com"><testcase classname="test.test_agent" name="test_agent_run[What's the weather today in Toronto, ON?-0]" time="10.596" /></testsuite></testsuites>

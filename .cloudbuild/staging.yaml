@@ -1,0 +1,177 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+steps:
+  - name: "python:3.12-slim"
+    id: install-dependencies
+    entrypoint: /bin/bash
+    args:
+      - "-c"
+      - |
+        pip install uv==0.8.13 --user && uv sync --locked
+    env:
+      - 'PATH=/usr/local/bin:/usr/bin:~/.local/bin'
+
+  - name: "gcr.io/cloud-builders/docker"
+    id: build-mcp-server
+    args:
+      - "build"
+      - "-t"
+      - "${_REGION}-docker.pkg.dev/${_STAGING_PROJECT_ID}/mcp-server-repo/weather-mcp-server:${COMMIT_SHA}"
+      - "./src/mcp_servers/weather_mcp_server"
+
+  - name: "gcr.io/cloud-builders/docker"
+    id: push-mcp-server
+    args:
+      - "push"
+      - "${_REGION}-docker.pkg.dev/${_STAGING_PROJECT_ID}/mcp-server-repo/weather-mcp-server:${COMMIT_SHA}"
+
+  - name: "hashicorp/terraform:1.5.7"
+    id: terraform-init
+    dir: "deployment/terraform"
+    args: ["init"]
+
+  - name: "hashicorp/terraform:1.5.7"
+    id: terraform-apply
+    dir: "deployment/terraform"
+    args:
+      - "apply"
+      - "-auto-approve"
+      - "-var=mcp_image_tag=${COMMIT_SHA}"
+      - "-target=google_artifact_registry_repository.mcp_repo[\"staging\"]"
+      - "-target=google_cloud_run_v2_service.mcp_server[\"staging\"]"
+      - "-target=module.gemini_enterprise_oauth[\"staging\"]"
+      - "-target=module.gemini_enterprise_agent_engine_register[\"staging\"]"
+
+  # Extract the Cloud Run MCP server URL after Terraform creates the service.
+  # The URL is saved to /workspace/mcp_url.txt for use in the deploy step.
+  - name: gcr.io/cloud-builders/gcloud
+    id: get-mcp-url
+    entrypoint: /bin/bash
+    args:
+      - "-c"
+      - |
+        MCP_BASE=$(gcloud run services describe weather-mcp-server-oauth-staging \
+          --region=${_REGION} \
+          --project=${_STAGING_PROJECT_ID} \
+          --format='value(status.url)')
+        echo "${MCP_BASE}/mcp" > /workspace/mcp_url.txt
+        echo "MCP URL: ${MCP_BASE}/mcp"
+    waitFor: ['terraform-apply']
+
+  - name: "python:3.12-slim"
+    id: deploy-adk-agent
+    entrypoint: /bin/bash
+    args:
+      - "-c"
+      - |
+        export MCP_URL=$(cat /workspace/mcp_url.txt)
+        uv export --no-hashes --no-sources --no-header --no-dev --no-emit-project --no-annotate --locked > src/adk_agent/app_utils/.requirements.txt
+        uv run python deployment/deploy_agents.py
+    env:
+      - 'PATH=/usr/local/bin:/usr/bin:~/.local/bin'
+      - 'PYTHONPATH=src'
+      - 'PROJECT_ID=${_STAGING_PROJECT_ID}'
+      - 'GOOGLE_CLOUD_REGION=${_REGION}'
+      - 'APP_SERVICE_ACCOUNT=${_APP_SERVICE_ACCOUNT_STAGING}'
+      - 'AUTH_ID=${_AUTH_ID_STAGING}'
+      - 'DISPLAY_NAME_SUFFIX=Staging'
+      - 'REQUIREMENTS_FILE=src/adk_agent/app_utils/.requirements.txt'
+      - 'BUCKET_NAME=${_STAGING_PROJECT_ID}-bucket'
+    waitFor: ['get-mcp-url', 'install-dependencies']
+
+  - name: gcr.io/cloud-builders/gcloud
+    id: fetch-auth-token
+    entrypoint: /bin/bash
+    args:
+      - "-c"
+      - |
+        echo $(gcloud auth print-access-token -q) > auth_token.txt
+
+  # Load Testing
+  - name: "python:3.12-slim"
+    id: load_test
+    entrypoint: /bin/bash
+    args:
+      - "-c"
+      - |
+        export _AUTH_TOKEN=$(cat auth_token.txt)
+        pip install locust==2.31.1 --user
+        locust -f tests/load_test/load_test.py \
+        --headless \
+        -t 30s -u 2 -r 0.5 \
+        --csv=tests/load_test/.results/results \
+        --html=tests/load_test/.results/report.html
+    env:
+      - 'PATH=/usr/local/bin:/usr/bin:~/.local/bin'
+
+  # Export Load Test Results to GCS
+  - name: gcr.io/cloud-builders/gcloud
+    id: export-results-to-gcs
+    entrypoint: /bin/bash
+    args:
+      - "-c"
+      - |
+        export _TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+        gsutil -m cp -r tests/load_test/.results gs://${_LOGS_BUCKET_NAME_STAGING}/load-test-results/results-$${_TIMESTAMP}
+        echo "_________________________________________________________________________"
+        echo "Load test results copied to gs://${_LOGS_BUCKET_NAME_STAGING}/load-test-results/results-$${_TIMESTAMP}"
+        echo "HTTP link: https://console.cloud.google.com/storage/browser/${_LOGS_BUCKET_NAME_STAGING}/load-test-results/results-$${_TIMESTAMP}"
+        echo "_________________________________________________________________________"
+
+  # Trigger Prod Deployment
+  - name: gcr.io/cloud-builders/gcloud
+    id: trigger-prod-deployment
+    entrypoint: gcloud
+    args:
+      - "beta"
+      - "builds"
+      - "triggers"
+      - "run"
+      - "deploy-agents-solution-ops"
+      - "--region"
+      - "$LOCATION"
+      - "--project"
+      - "$PROJECT_ID"
+      - "--sha"
+      - $COMMIT_SHA
+
+  - name: gcr.io/cloud-builders/gcloud
+    id: echo-view-build-trigger-link
+    entrypoint: /bin/bash
+    args:
+      - "-c"
+      - |
+        echo "_________________________________________________________________________"
+        echo "Production deployment triggered. View progress and / or approve on the Cloud Build Console:"
+        echo "https://console.cloud.google.com/cloud-build/builds;region=$LOCATION"
+        echo "_________________________________________________________________________"
+
+substitutions:
+  _STAGING_PROJECT_ID: YOUR_STAGING_PROJECT_ID
+  _REGION: us-central1
+  # Service account that the deployed Agent Engine runs as (created by Terraform).
+  # Format: {project_name}-app@{staging_project_id}.iam.gserviceaccount.com
+  _APP_SERVICE_ACCOUNT_STAGING: YOUR_APP_SA@YOUR_STAGING_PROJECT_ID.iam.gserviceaccount.com
+  # Agentspace authorization ID registered in Gemini Enterprise for staging.
+  # Must match {env}-{local.auth_id} in deployment/terraform/gemini_enterprise.tf
+  # Default: staging-ui_oauth_token
+  _AUTH_ID_STAGING: staging-ui_oauth_token
+  # GCS bucket used for load test result export.
+  _LOGS_BUCKET_NAME_STAGING: YOUR_STAGING_PROJECT_ID-agents-solution-ops-logs
+
+logsBucket: gs://${PROJECT_ID}-agents-solution-ops-logs/build-logs
+options:
+  substitutionOption: ALLOW_LOOSE
+  defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET

@@ -1,0 +1,107 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+steps:
+  - name: "python:3.12-slim"
+    id: install-dependencies
+    entrypoint: /bin/bash
+    args:
+      - "-c"
+      - |
+        pip install uv==0.8.13 --user && uv sync --locked
+    env:
+      - 'PATH=/usr/local/bin:/usr/bin:~/.local/bin'
+
+  - name: "gcr.io/cloud-builders/docker"
+    id: build-mcp-server
+    args:
+      - "build"
+      - "-t"
+      - "${_REGION}-docker.pkg.dev/${_PROD_PROJECT_ID}/mcp-server-repo/weather-mcp-server:${COMMIT_SHA}"
+      - "./src/mcp_servers/weather_mcp_server"
+
+  - name: "gcr.io/cloud-builders/docker"
+    id: push-mcp-server
+    args:
+      - "push"
+      - "${_REGION}-docker.pkg.dev/${_PROD_PROJECT_ID}/mcp-server-repo/weather-mcp-server:${COMMIT_SHA}"
+
+  - name: "hashicorp/terraform:1.5.7"
+    id: terraform-init
+    dir: "deployment/terraform"
+    args: ["init"]
+
+  - name: "hashicorp/terraform:1.5.7"
+    id: terraform-apply
+    dir: "deployment/terraform"
+    args:
+      - "apply"
+      - "-auto-approve"
+      - "-var=mcp_image_tag=${COMMIT_SHA}"
+      - "-target=google_artifact_registry_repository.mcp_repo[\"prod\"]"
+      - "-target=google_cloud_run_v2_service.mcp_server[\"prod\"]"
+      - "-target=module.gemini_enterprise_oauth[\"prod\"]"
+      - "-target=module.gemini_enterprise_agent_engine_register[\"prod\"]"
+
+  # Extract the Cloud Run MCP server URL after Terraform creates the service.
+  - name: gcr.io/cloud-builders/gcloud
+    id: get-mcp-url
+    entrypoint: /bin/bash
+    args:
+      - "-c"
+      - |
+        MCP_BASE=$(gcloud run services describe weather-mcp-server-oauth-prod \
+          --region=${_REGION} \
+          --project=${_PROD_PROJECT_ID} \
+          --format='value(status.url)')
+        echo "${MCP_BASE}/mcp" > /workspace/mcp_url.txt
+        echo "MCP URL: ${MCP_BASE}/mcp"
+    waitFor: ['terraform-apply']
+
+  - name: "python:3.12-slim"
+    id: deploy-adk-agent
+    entrypoint: /bin/bash
+    args:
+      - "-c"
+      - |
+        export MCP_URL=$(cat /workspace/mcp_url.txt)
+        uv export --no-hashes --no-sources --no-header --no-dev --no-emit-project --no-annotate --locked > src/adk_agent/app_utils/.requirements.txt
+        uv run python deployment/deploy_agents.py
+    env:
+      - 'PATH=/usr/local/bin:/usr/bin:~/.local/bin'
+      - 'PYTHONPATH=src'
+      - 'PROJECT_ID=${_PROD_PROJECT_ID}'
+      - 'GOOGLE_CLOUD_REGION=${_REGION}'
+      - 'APP_SERVICE_ACCOUNT=${_APP_SERVICE_ACCOUNT_PROD}'
+      - 'AUTH_ID=${_AUTH_ID_PROD}'
+      - 'DISPLAY_NAME_SUFFIX=Prod'
+      - 'REQUIREMENTS_FILE=src/adk_agent/app_utils/.requirements.txt'
+      - 'BUCKET_NAME=${_PROD_PROJECT_ID}-bucket'
+    waitFor: ['get-mcp-url', 'install-dependencies']
+
+substitutions:
+  _PROD_PROJECT_ID: YOUR_PROD_PROJECT_ID
+  _REGION: us-central1
+  # Service account that the deployed Agent Engine runs as (created by Terraform).
+  # Format: {project_name}-app@{prod_project_id}.iam.gserviceaccount.com
+  _APP_SERVICE_ACCOUNT_PROD: YOUR_APP_SA@YOUR_PROD_PROJECT_ID.iam.gserviceaccount.com
+  # Agentspace authorization ID registered in Gemini Enterprise for prod.
+  # Must match {env}-{local.auth_id} in deployment/terraform/gemini_enterprise.tf
+  # Default: prod-ui_oauth_token
+  _AUTH_ID_PROD: prod-ui_oauth_token
+
+logsBucket: gs://${PROJECT_ID}-agents-solution-ops-logs/build-logs
+options:
+  substitutionOption: ALLOW_LOOSE
+  defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET

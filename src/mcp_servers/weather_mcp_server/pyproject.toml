@@ -1,0 +1,19 @@
+[project]
+name = "weather-mcp-server"
+version = "0.1.0"
+description = "Weather MCP Server with OAuth2 authentication"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "fastmcp>=2.8.0,<3.0",
+  "pydantic>=2.10.0,<2.12",
+  "pydantic-settings>=2.7.0,<3.0",
+  "geopy>=2.4.1",
+  "httpx[http2]>=0.28.1",
+  "mcp[cli]>=1.6.0",
+  "uvicorn[standard]>=0.34.2",
+  "python-dotenv>=1.0.0",
+  "click>=8.1.0",
+  "google-auth>=2.28.0",
+  "requests>=2.31.0"
+]
