@@ -38,7 +38,6 @@ import logging
 import os
 import shutil
 import sys
-import tempfile
 
 import vertexai
 from dotenv import load_dotenv
@@ -154,8 +153,13 @@ def main():
     if mcp_url:
         env_vars["MCP_URL"] = mcp_url
 
-    with tempfile.TemporaryDirectory(dir=".") as tmpdir:
-        clean_pkg = os.path.join(tmpdir, "adk_agent")
+    # Create a clean copy of the source package directly in the working directory
+    # so that tar.add("adk_agent") places the package at the tarball root.
+    # A nested path (e.g. "./tmpXXX/adk_agent") would embed the random prefix in
+    # the archive, making "import adk_agent" fail at Agent Engine startup.
+    clean_pkg = "adk_agent"
+    shutil.rmtree(clean_pkg, ignore_errors=True)
+    try:
         _copy_source_clean("./src/adk_agent", clean_pkg)
 
         config = AgentEngineConfig(
@@ -208,6 +212,8 @@ def main():
             remote_agent = client.agent_engines.create(config=config)
 
         agent_resource_name = remote_agent.api_resource.name
+    finally:
+        shutil.rmtree(clean_pkg, ignore_errors=True)
     logger.info(f"Deployed '{display_name}': {agent_resource_name}")
 
     # Write agent resource name for downstream CI/CD steps (e.g. frontend deployment).
