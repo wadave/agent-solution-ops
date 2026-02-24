@@ -27,10 +27,11 @@ resource "google_artifact_registry_repository" "mcp_repo" {
 resource "google_cloud_run_v2_service" "mcp_server" {
   for_each = local.deploy_project_ids
 
-  name     = "weather-mcp-server-oauth-${each.key}"
-  location = var.region
-  project  = each.value
-  ingress  = "INGRESS_TRAFFIC_ALL"
+  name                = "weather-mcp-server-oauth-${each.key}"
+  location            = var.region
+  project             = each.value
+  ingress             = "INGRESS_TRAFFIC_ALL"
+  deletion_protection = false
 
   template {
     containers {
