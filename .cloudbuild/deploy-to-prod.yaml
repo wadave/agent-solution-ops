@@ -123,7 +123,7 @@ substitutions:
   # Agentspace authorization ID registered in Gemini Enterprise for prod.
   # Must match {env}-{local.auth_id} in deployment/terraform/gemini_enterprise.tf
   # Default: prod-ui_oauth_token
-  _AUTH_ID_PROD: prod-ui_oauth_token
+  _AUTH_ID_PROD: prod-weather-oauth-token
 
 logsBucket: gs://${PROJECT_ID}-agents-solution-ops-logs/build-logs
 options:

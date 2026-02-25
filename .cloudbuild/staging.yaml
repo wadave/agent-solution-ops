@@ -124,7 +124,7 @@ substitutions:
   # Agentspace authorization ID registered in Gemini Enterprise for staging.
   # Must match {env}-{local.auth_id} in deployment/terraform/gemini_enterprise.tf
   # Default: staging-ui_oauth_token
-  _AUTH_ID_STAGING: staging-ui_oauth_token
+  _AUTH_ID_STAGING: staging-weather-oauth-token
 
 logsBucket: gs://${PROJECT_ID}-agents-solution-ops-logs/build-logs
 options:

@@ -316,10 +316,10 @@ Edit the `substitutions` block at the bottom of `.cloudbuild/staging.yaml` and `
 | `_REGION` | GCP region (default: `us-central1`) |
 | `_APP_SERVICE_ACCOUNT_STAGING` | Service account email for the staging Agent Engine (created by Terraform — set after first apply) |
 | `_APP_SERVICE_ACCOUNT_PROD` | Service account email for the prod Agent Engine (created by Terraform — set after first apply) |
-| `_AUTH_ID_STAGING` | GE authorization ID for staging (default: `staging-ui_oauth_token`) |
-| `_AUTH_ID_PROD` | GE authorization ID for prod (default: `prod-ui_oauth_token`) |
+| `_AUTH_ID_STAGING` | GE authorization ID for staging (default: `staging-weather-oauth-token`) |
+| `_AUTH_ID_PROD` | GE authorization ID for prod (default: `prod-weather-oauth-token`) |
 
-The `AUTH_ID` values must match the `${each.key}-${local.auth_id}` pattern in `deployment/terraform/gemini_enterprise.tf`.
+The `AUTH_ID` values must match the `${each.key}-${local.auth_id}` pattern in `deployment/terraform/gemini_enterprise.tf`. For this project `local.auth_id = "weather-oauth-token"`, giving `staging-weather-oauth-token` and `prod-weather-oauth-token`. Use a project-specific suffix to avoid conflicts with other agents registered to the same GE app.
 
 The service account emails follow the pattern `{project_name}-app@{project_id}.iam.gserviceaccount.com`. You can fill them in after the first `terraform apply` creates the accounts, or pre-compute them if you know the values.
 

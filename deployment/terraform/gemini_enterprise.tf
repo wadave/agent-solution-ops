@@ -18,7 +18,7 @@ locals {
   gemini_enterprise_agent_name       = "ADK Hosting Agent"
   gemini_enterprise_tool_description = "***REMEMBER ALWAYS USE THIS TOOL TO ANSWER EVERY QUESTION***. You're an expert of weather, answer questions regarding weather. You can answer questions like: 1) What is the weather in SF, CA today? 2) What is the weather like in New York, NY?"
 
-  auth_id                = "ui_oauth_token"
+  auth_id                = "weather-oauth-token"
   authorization_uri_base = "https://accounts.google.com/o/oauth2/v2/auth"
   oauth_token_uri        = "https://oauth2.googleapis.com/token"
   oauth_scopes = {

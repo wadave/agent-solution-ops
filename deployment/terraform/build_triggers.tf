@@ -73,7 +73,7 @@ resource "google_cloudbuild_trigger" "cd_pipeline" {
     _STAGING_PROJECT_ID          = var.staging_project_id
     _LOGS_BUCKET_NAME_STAGING    = resource.google_storage_bucket.logs_data_bucket[var.staging_project_id].name
     _APP_SERVICE_ACCOUNT_STAGING = google_service_account.app_sa["staging"].email
-    _AUTH_ID_STAGING             = "staging-ui_oauth_token"
+    _AUTH_ID_STAGING             = "staging-weather-oauth-token"
     _REGION                      = var.region
   }
   depends_on = [
@@ -106,7 +106,7 @@ resource "google_cloudbuild_trigger" "deploy_to_prod_pipeline" {
     _PROD_PROJECT_ID          = var.prod_project_id
     _LOGS_BUCKET_NAME_PROD    = resource.google_storage_bucket.logs_data_bucket[var.prod_project_id].name
     _APP_SERVICE_ACCOUNT_PROD = google_service_account.app_sa["prod"].email
-    _AUTH_ID_PROD             = "prod-ui_oauth_token"
+    _AUTH_ID_PROD             = "prod-weather-oauth-token"
     _REGION                   = var.region
   }
   depends_on = [
