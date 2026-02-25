@@ -33,8 +33,10 @@ Complete guide for setting up an ADK agent with dual-mode OAuth authentication t
   - [Cloud Build fails with 403 downloading Python packages](#cloud-build-fails-with-403-downloading-python-packages)
 
 ## 📖 Overview
-The Gemini Enterprise Weather Agent is a cloud-native generative AI system deployed on Google Cloud Platform (GCP). It leverages the Gemini Enterprise Engine and an ADK Agent to interpret natural language weather queries. By communicating securely with a custom FastMCP Weather Server hosted on Cloud Run, the agent fetches real-time meteorological data from the National Weather Service (NWS) API and delivers conversational insights back to the user.
+The Gemini Enterprise Weather Agent is a cloud-native generative AI system deployed on Google Cloud. It leverages the Gemini Enterprise Engine and an ADK Agent to interpret natural language weather queries. By communicating securely with a custom FastMCP Weather Server hosted on Cloud Run, the agent fetches real-time meteorological data from the National Weather Service (NWS) API and delivers conversational insights back to the user.
 
+---
+![architecture](./assets/ge-adk-mcp.jpeg)
 ## 🏗️ Architecture Component Summary
 * **Gemini Enterprise Engine & UI**: Handles user interactions, intent recognition, and dynamic token-passing.
 * **ADK Agent**: The reasoning engine that decides when and how to invoke the Weather MCP server.
@@ -53,13 +55,13 @@ The `ENVIRONMENT` environment variable dictates the authentication flow:
 * Triggers a browser-based OAuth flow for the developer to authenticate locally.
 
 **Production (`ENVIRONMENT=production`)**:
-* Uses server-to-server authentication (e.g., GCP Service Accounts or headless OAuth).
+* Uses server-to-server authentication (e.g., Google Cloud Service Accounts or headless OAuth).
 * Tokens are securely passed from the Gemini Enterprise Engine to the MCP Server via authorization headers.
 ## High-Level Component Diagram
 
 ```mermaid
 graph TB
-    subgraph "Google Cloud Platform"
+    subgraph "Google Cloud"
         subgraph "User Interface"
         UI["Gemini Enterprise UI"]
         end
@@ -214,7 +216,7 @@ trigger prod pipeline  (staging only)
 
 ### One-time Setup
 
-This section is for someone setting up the project from scratch in their own GCP environment. Follow the steps in order — each step is a prerequisite for the next.
+This section is for someone setting up the project from scratch in their own Google Cloud environment. Follow the steps in order — each step is a prerequisite for the next.
 
 #### Prerequisites
 
@@ -223,9 +225,9 @@ This section is for someone setting up the project from scratch in their own GCP
 - You must create a Gemini Enterprise app.
 - You must set up OAuth 2.0 Web Client credentials and save the downloaded JSON file in Google Secret Manager as `client_secret`.
 
-**GCP Projects**
+**Google Cloud Projects**
 
-You need two or three GCP projects:
+You need two or three Google Cloud projects:
 
 | Variable | Purpose |
 |---|---|
@@ -312,8 +314,8 @@ Two Cloud Build GitHub connections are required — one in each project that run
 
 **To create each connection:**
 
-You can manually set up the connections via the GCP Console:
-1. In the GCP Console, go to **Cloud Build → Repositories** for the target project
+You can manually set up the connections via the Google Cloud Console:
+1. In the Google Cloud Console, go to **Cloud Build → Repositories** for the target project
 2. Click **Create host connection**, choose GitHub, and follow the OAuth flow
 3. Once the connection exists, link your repository to it
 
@@ -334,9 +336,9 @@ Edit the `substitutions` block at the bottom of `.cloudbuild/staging.yaml` and `
 
 | Substitution | Description |
 |---|---|
-| `_STAGING_PROJECT_ID` | GCP project ID for staging |
-| `_PROD_PROJECT_ID` | GCP project ID for production |
-| `_REGION` | GCP region (default: `us-central1`) |
+| `_STAGING_PROJECT_ID` | Google Cloud project ID for staging |
+| `_PROD_PROJECT_ID` | Google Cloud project ID for production |
+| `_REGION` | Google Cloud region (default: `us-central1`) |
 | `_APP_SERVICE_ACCOUNT_STAGING` | Service account email for the staging Agent Engine (created by Terraform — set after first apply) |
 | `_APP_SERVICE_ACCOUNT_PROD` | Service account email for the prod Agent Engine (created by Terraform — set after first apply) |
 | `_AUTH_ID_STAGING` | GE authorization ID for staging (default: `staging-weather-oauth-token`) |
@@ -496,8 +498,8 @@ The agent **automatically selects** the correct mode based on the `ENVIRONMENT` 
 | `AUTH_ID` | Yes | Gemini Enterprise authorization ID (e.g. `staging-ui_oauth_token`). |
 | `GOOGLE_CLIENT_ID` | Dev only | OAuth client ID for browser-based flow. |
 | `GOOGLE_CLIENT_SECRET` | Dev only | OAuth client secret for browser-based flow. |
-| `GOOGLE_CLOUD_PROJECT` | No | GCP project ID. |
-| `GOOGLE_CLOUD_LOCATION` | No | GCP region. Default: `us-central1`. |
+| `GOOGLE_CLOUD_PROJECT` | No | Google Cloud project ID. |
+| `GOOGLE_CLOUD_LOCATION` | No | Google Cloud region. Default: `us-central1`. |
 | `OAUTH_REDIRECT_URI_DEV` | No | Dev redirect URI. Default: `http://127.0.0.1:8000/dev-ui/`. |
 | `OAUTH_REDIRECT_URI_PROD` | No | Prod redirect URI. Default: `https://vertexaisearch.cloud.google.com/oauth-redirect`. |
 | `DEBUG_CONTEXT` | No | Set to `true` to dump full session context to stderr on each MCP call. |
@@ -507,7 +509,7 @@ The agent **automatically selects** the correct mode based on the `ENVIRONMENT` 
 
 | Variable | Required | Description |
 |---|---|---|
-| `PROJECT_ID` | Yes | GCP project ID. |
+| `PROJECT_ID` | Yes | Google Cloud project ID. |
 | `GOOGLE_CLIENT_ID` | Yes | OAuth client ID for MCP server OAuth middleware. |
 | `GOOGLE_CLIENT_SECRET` | Yes | OAuth client secret. |
 | `OAUTH_REDIRECT_URI_PROD` | No | Production redirect URI. |
