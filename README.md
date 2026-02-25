@@ -1,6 +1,6 @@
-# ADK Weather Agent with OAuth Authentication
+# Gemini Enterprise with ADK Agent for Secured Remote MCP Services
 
-Complete guide for setting up an ADK agent with dual-mode OAuth authentication to access MCP (Model Context Protocol) weather services.
+Complete guide for setting up an ADK agent with dual-mode OAuth authentication to access MCP (Model Context Protocol) services.
 
 ## Table of Contents
 - [High-Level Component Diagram](#high-level-component-diagram)
@@ -40,6 +40,7 @@ The Gemini Enterprise Weather Agent is a cloud-native generative AI system deplo
 * **ADK Agent**: The reasoning engine that decides when and how to invoke the Weather MCP server.
 * **Weather MCP Server (Cloud Run)**: A FastMCP-based microservice that exposes weather-fetching tools and handles API requests to the NWS.
 * **Identity Provider**: Manages OAuth 2.0 authentication for secure tool execution.
+* **Observability (Agent Engine)**: Cloud Logging, Monitoring, and Tracing are natively enabled for the Agent Engine, providing complete visibility into execution logs, latency metrics, and distributed traces.
 
 ## 🔐 Authentication & Security
 This system features dynamic authentication switching based on the deployment environment to ensure developer velocity without compromising production security.
