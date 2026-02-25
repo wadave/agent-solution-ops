@@ -69,8 +69,8 @@ steps:
           --region=${_REGION} \
           --project=${_STAGING_PROJECT_ID} \
           --format='value(status.url)')
-        echo "$${MCP_BASE}/mcp" > /workspace/mcp_url.txt
-        echo "MCP URL: $${MCP_BASE}/mcp"
+        echo "$${MCP_BASE}/mcp/" > /workspace/mcp_url.txt
+        echo "MCP URL: $${MCP_BASE}/mcp/"
     waitFor: ['terraform-apply']
 
   - name: "python:3.12-slim"
