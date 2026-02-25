@@ -146,7 +146,7 @@ AUTH_ID='staging-ui_oauth_token'
 ### 4. Run Locally
 
 ```bash
-make playground
+uv run adk web src --port 8501 --reload_agents
 ```
 
 Visit http://localhost:8501 and try: "What's the weather in Los Angeles?"
@@ -416,7 +416,7 @@ The SA email follows the pattern `{project_name}-cd@{staging_project_id}.iam.gse
 **Deploy agent manually:**
 
 ```bash
-make deploy
+uv run deployment/deploy_agents.py
 ```
 
 Runs `deployment/deploy_agents.py` directly. Useful for one-off deploys from a developer machine.
@@ -424,7 +424,7 @@ Runs `deployment/deploy_agents.py` directly. Useful for one-off deploys from a d
 **Register to Gemini Enterprise manually:**
 
 ```bash
-make register-gemini-enterprise
+uvx agent-starter-pack@0.36.0 register-gemini-enterprise
 ```
 
 Handled automatically by Terraform in CI/CD when `oauth_client_id_secret_name` is set. The Makefile target is available for manual registration or re-registration.
