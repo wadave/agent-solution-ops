@@ -32,6 +32,28 @@ Complete guide for setting up an ADK agent with dual-mode OAuth authentication t
 - [Troubleshooting](#troubleshooting)
   - [Cloud Build fails with 403 downloading Python packages](#cloud-build-fails-with-403-downloading-python-packages)
 
+## 📖 Overview
+The Gemini Enterprise Weather Agent is a cloud-native generative AI system deployed on Google Cloud Platform (GCP). It leverages the Gemini Enterprise Engine and an ADK Agent to interpret natural language weather queries. By communicating securely with a custom FastMCP Weather Server hosted on Cloud Run, the agent fetches real-time meteorological data from the National Weather Service (NWS) API and delivers conversational insights back to the user.
+
+## 🏗️ Architecture Component Summary
+* **Gemini Enterprise Engine & UI**: Handles user interactions, intent recognition, and dynamic token-passing.
+* **ADK Agent**: The reasoning engine that decides when and how to invoke the Weather MCP server.
+* **Weather MCP Server (Cloud Run)**: A FastMCP-based microservice that exposes weather-fetching tools and handles API requests to the NWS.
+* **Identity Provider**: Manages OAuth 2.0 authentication for secure tool execution.
+
+## 🔐 Authentication & Security
+This system features dynamic authentication switching based on the deployment environment to ensure developer velocity without compromising production security.
+
+### Environment-Based Switching
+The `ENVIRONMENT` environment variable dictates the authentication flow:
+
+**Development (`ENVIRONMENT=development`)**:
+* Uses OAuth2Auth with client credentials.
+* Triggers a browser-based OAuth flow for the developer to authenticate locally.
+
+**Production (`ENVIRONMENT=production`)**:
+* Uses server-to-server authentication (e.g., GCP Service Accounts or headless OAuth).
+* Tokens are securely passed from the Gemini Enterprise Engine to the MCP Server via authorization headers.
 ## High-Level Component Diagram
 
 ```mermaid
