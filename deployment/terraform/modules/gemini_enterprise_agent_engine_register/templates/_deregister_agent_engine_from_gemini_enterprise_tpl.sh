@@ -33,7 +33,7 @@ gemini_enterprise_app_id="${gemini_enterprise_app_id}"
 echo -n "Fetching Gemini Enterprise Assistants by Display Name \"$${gemini_enterprise_agent_name}\": "
 all_assistants_output=$(curl -s -X GET \
     -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-    -H "x-goog-user-project: $(gcloud config get-value project 2>&1 | grep -v 'active config')" \
+    -H "x-goog-user-project: $${gcp_project}" \
     -H "content-type: application/json" \
     "https://$${api_endpoint}/v1alpha/projects/$${gcp_project}/locations/$${gemini_enterprise_location}/collections/$${collection_id}/engines/$${gemini_enterprise_app_id}/assistants/default_assistant/agents")
 
@@ -61,7 +61,7 @@ fi
 echo -n "Deleting Gemini Enterprise Assistant by Resource Name \"$${gemini_enterprise_assistant_resource_name}\": "
 delete_assistant_output=$(curl -s -X DELETE \
     -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-    -H "x-goog-user-project: $(gcloud config get-value project 2>&1 | grep -v 'active config')" \
+    -H "x-goog-user-project: $${gcp_project}" \
     -H "content-type: application/json" \
     "https://$${api_endpoint}/v1alpha/$${gemini_enterprise_assistant_resource_name}")
 

@@ -74,7 +74,7 @@ authorization_uri+="$${additional_vars}"
 echo -n "Fetching Discovery Engine Authorization \"$${authorization_name}\": "
 authorization_fetch_output=$(curl -s -X GET \
     -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-    -H "x-goog-user-project: $(gcloud config get-value project 2>&1 | grep -v 'active config')" \
+    -H "x-goog-user-project: $${gcp_project}" \
     -H "content-type: application/json" \
     "https://$${api_endpoint}/v1alpha/$${authorization_name}")
 
@@ -112,7 +112,7 @@ if [ -z "$${gemini_enterprise_authorization_resource_name}" ]; then
   echo -n "Registering Authorization \"$${authorization_name}\" with Discovery Engine: "
   register_output=$(curl -s -X POST \
       -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-      -H "x-goog-user-project: $(gcloud config get-value project 2>&1 | grep -v 'active config')" \
+      -H "x-goog-user-project: $${gcp_project}" \
       -H "content-type: application/json" \
       "https://$${api_endpoint}/v1alpha/projects/$${gcp_project}/locations/$${gemini_enterprise_location}/authorizations?authorizationId=$${authorization_id}" \
       -d "$${REQUEST_BODY}")
@@ -133,7 +133,7 @@ fi
 echo -n "Updating Authorization \"$${authorization_name}\" on Discovery Engine: "
 register_output=$(curl -s -X PATCH \
     -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-    -H "x-goog-user-project: $(gcloud config get-value project 2>&1 | grep -v 'active config')" \
+    -H "x-goog-user-project: $${gcp_project}" \
     -H "content-type: application/json" \
     "https://$${api_endpoint}/v1alpha/projects/$${gcp_project}/locations/$${gemini_enterprise_location}/authorizations/$${authorization_id}" \
     -d "$${REQUEST_BODY}")

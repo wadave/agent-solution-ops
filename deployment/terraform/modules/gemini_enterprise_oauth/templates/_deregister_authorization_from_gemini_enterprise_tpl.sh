@@ -30,7 +30,7 @@ authorization_name="projects/$${gcp_project_number}/locations/$${gemini_enterpri
 echo -n "Fetching Discovery Engine Authorization \"$${authorization_name}\": "
 authorization_fetch_output=$(curl -s -X GET \
     -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-    -H "x-goog-user-project: $(gcloud config get-value project 2>&1 | grep -v 'active config')" \
+    -H "x-goog-user-project: $${gcp_project}" \
     -H "content-type: application/json" \
     "https://$${api_endpoint}/v1alpha/$${authorization_name}")
 
@@ -50,7 +50,7 @@ fi
 echo -n "Deleting Authorization \"$${authorization_name}\" from Discovery Engine: "
 delete_output=$(curl -s -X DELETE \
     -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-    -H "x-goog-user-project: $(gcloud config get-value project 2>&1 | grep -v 'active config')" \
+    -H "x-goog-user-project: $${gcp_project}" \
     -H "content-type: application/json" \
     "https://$${api_endpoint}/v1alpha/$${authorization_name}")
 

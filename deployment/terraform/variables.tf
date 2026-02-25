@@ -80,7 +80,7 @@ variable "cicd_roles" {
   default = [
     "roles/storage.admin",
     "roles/aiplatform.user",
-    "roles/discoveryengine.editor",
+    "roles/discoveryengine.admin",
     "roles/logging.logWriter",
     "roles/cloudtrace.agent",
     "roles/artifactregistry.writer",
