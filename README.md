@@ -222,7 +222,7 @@ This section is for someone setting up the project from scratch in their own Goo
 
 **Gemini Enterprise App & OAuth Credentials**
 
-- You must create a Gemini Enterprise app.
+- You must create a Gemini Enterprise app and get its ID.
 - You must set up OAuth 2.0 Web Client credentials and save the downloaded JSON file in Google Secret Manager as `client_secret`.
 
 **Google Cloud Projects**

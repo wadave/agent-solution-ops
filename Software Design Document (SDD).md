@@ -118,7 +118,7 @@
 - **Authorization**:
   - The Agent Engine service account is granted precise IAM permissions (e.g., `roles/run.invoker` for the Cloud Run MCP server).
 - **Data Protection**:
-  - Secrets (OAuth client IDs and configurations) are stored centrally in Google Cloud Secret Manager.
+  - Secrets (OAuth client credentials downloaded as JSON) are stored centrally in Google Cloud Secret Manager as `client_secret` and accessed dynamically during deployment.
 - **Threat Model**:
   - Ensure the MCP server strictly validates input to prevent Prompt Injection leading to RCE (Remote Code Execution) via the tool interface.
 
