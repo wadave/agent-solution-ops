@@ -54,7 +54,8 @@ steps:
           -var=mcp_image_tag=${COMMIT_SHA} \
           -target='google_project_iam_member.staging_cicd_project_roles' \
           -target='google_artifact_registry_repository.mcp_repo["staging"]' \
-          -target='google_cloud_run_v2_service.mcp_server["staging"]'
+          -target='google_cloud_run_v2_service.mcp_server["staging"]' \
+          -target='google_cloud_run_v2_service_iam_binding.mcp_server_public_access["staging"]'
 
   # Extract the Cloud Run MCP server URL after Terraform creates the service.
   # The URL is saved to /workspace/mcp_url.txt for use in the deploy step.

@@ -78,7 +78,7 @@ module "gemini_enterprise_agent_engine_register" {
   agent_display_name = "ADK Hosting Agent for MCP (${each.key})"
   agent_description  = "Hosting agent for ${each.key}"
 
-  gemini_enterprise_agent_name       = "${local.gemini_enterprise_agent_name} (${each.key})"
+  gemini_enterprise_agent_name       = "${local.gemini_enterprise_agent_name} for MCP (${each.key})"
   gemini_enterprise_tool_description = local.gemini_enterprise_tool_description
 
   # Note: The user needs to provide the app id for staging and prod
