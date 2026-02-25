@@ -57,3 +57,17 @@ resource "google_cloud_run_v2_service" "mcp_server" {
 
 # Agent Engine is deployed and managed entirely by deployment/deploy_agents.py in CI/CD.
 # Terraform only manages the supporting infrastructure above (Cloud Run, Artifact Registry).
+
+# Allow unauthenticated invocations so the Python app can do its own OAuth validation
+resource "google_cloud_run_v2_service_iam_binding" "mcp_server_public_access" {
+  for_each = local.deploy_project_ids
+
+  project  = each.value
+  location = google_cloud_run_v2_service.mcp_server[each.key].location
+  name     = google_cloud_run_v2_service.mcp_server[each.key].name
+  role     = "roles/run.invoker"
+
+  members = [
+    "allUsers"
+  ]
+}
