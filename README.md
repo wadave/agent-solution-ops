@@ -165,7 +165,7 @@ OAUTH_REDIRECT_URI_DEV='http://127.0.0.1:8000/dev-ui/'
 OAUTH_REDIRECT_URI_PROD='https://vertexaisearch.cloud.google.com/oauth-redirect'
 
 # Auth ID — must match the authorization registered in Gemini Enterprise
-AUTH_ID='staging-ui_oauth_token'
+AUTH_ID='staging-weather-oauth-token'
 ```
 
 ### 4. Run Locally
@@ -495,7 +495,7 @@ The agent **automatically selects** the correct mode based on the `ENVIRONMENT` 
 |---|---|---|
 | `ENVIRONMENT` | No | `development` enables dev OAuth flow. Default: `deployment` (production mode). |
 | `MCP_URL` | Yes | Full URL of the MCP server including `/mcp` path. |
-| `AUTH_ID` | Yes | Gemini Enterprise authorization ID (e.g. `staging-ui_oauth_token`). |
+| `AUTH_ID` | Yes | Gemini Enterprise authorization ID (e.g. `staging-weather-oauth-token`). |
 | `GOOGLE_CLIENT_ID` | Dev only | OAuth client ID for browser-based flow. |
 | `GOOGLE_CLIENT_SECRET` | Dev only | OAuth client secret for browser-based flow. |
 | `GOOGLE_CLOUD_PROJECT` | No | Google Cloud project ID. |

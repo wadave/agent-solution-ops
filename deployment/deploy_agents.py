@@ -120,7 +120,7 @@ def main():
     if not auth_id:
         logger.error(
             "AUTH_ID is required so that adk_agent.agent can initialise at import time. "
-            "Pass the Agentspace authorization ID (e.g. staging-ui_oauth_token)."
+            "Pass the Agentspace authorization ID (e.g. staging-weather-oauth-token)."
         )
         sys.exit(1)
 
