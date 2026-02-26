@@ -1,0 +1,197 @@
+# Software Design Document (SDD) - Gemini Enterprise Weather Agent
+
+## 1. Introduction
+
+- **Purpose**: This document defines the design and architecture of the Gemini Enterprise Weather Agent system, documenting how it leverages ADK, FastMCP, and Google Cloud services to provide a secured, authenticated weather forecasting experience.
+- **Scope**: Includes the ADK Agent (reasoning engine), the Weather MCP Server (data provider), and the infrastructure/deployment automation (Terraform and Cloud Build). It covers the dual-mode OAuth authentication flow.
+- **Definitions and Acronyms**:
+  - **ADK**: Agent Development Kit (Google SDK for building agents).
+  - **MCP**: Model Context Protocol.
+  - **GE**: Gemini Enterprise.
+  - **NWS**: National Weather Service.
+- **References**:
+  - [Project README](file:///usr/local/google/home/wangdave/remote_ws/projects/agents-solution-ops/README.md)
+  - [Weather MCP Server Source](file:///usr/local/google/home/wangdave/remote_ws/projects/agents-solution-ops/src/mcp_servers/weather_mcp_server/weather_server.py)
+  - [ADK Agent Source](file:///usr/local/google/home/wangdave/remote_ws/projects/agents-solution-ops/src/adk_agent/agent.py)
+
+---
+
+## 2. System Overview
+
+- **System Description**: A cloud-native generative AI system that interprets natural language weather queries. It uses a reasoning agent to invoke a secured MCP server that fetches data from the NWS API.
+- **Design Goals**:
+  - **Security**: Strict OAuth 2.0 authentication for all tool calls.
+  - **Portability**: Dual-mode authentication for seamless local development and production deployment.
+  - **Observability**: Native integration with Google Cloud Logging and Monitoring.
+- **Architecture Summary**: Decoupled architecture with a reasoning layer (ADK Agent on Vertex AI) and a capability layer (MCP Server on Cloud Run).
+- **System Context Diagram**:
+  ```mermaid
+  graph LR
+      User((User)) --> GE[Gemini Enterprise UI]
+      GE --> Agent[ADK Weather Agent]
+      Agent --> MCP[Weather MCP Server]
+      MCP --> NWS[National Weather Service API]
+      Agent -.-> OAuth[Google OAuth 2.0]
+  ```
+
+---
+
+## 3. Architectural Design
+
+- **System Architecture Diagram**:
+
+  ```mermaid
+  graph TB
+      subgraph "Google Cloud"
+          direction TB
+          GE_Engine[Gemini Enterprise Engine]
+          subgraph "Vertex AI"
+              Agent_Engine[Agent Engine / ADK Agent]
+          end
+          subgraph "Cloud Run"
+              Cloud_Run[Weather MCP Server]
+          end
+          IAM[IAM & Secret Manager]
+      end
+
+      subgraph "External"
+          NWS[Weather API]
+          Google_Auth[Google OAuth Provider]
+      end
+
+      GE_Engine -->|Invoke| Agent_Engine
+      Agent_Engine -->|Authenticated Tool Call| Cloud_Run
+      Cloud_Run -->|API Request| NWS
+      GE_Engine <-->|Token Exchange| Google_Auth
+      Cloud_Run -->|Verify Token| Google_Auth
+  ```
+
+- **Component Breakdown**:
+  - **ADK Agent**: Orchestrates tool calls, handles session context, and implements environment-aware authentication logic.
+  - **Weather MCP Server**: FastMCP-based service providing specific tools (`get_forecast`, `get_alerts`) with built-in OAuth verification middleware.
+  - **Deployment Layer**: Terraform (Infra) + Cloud Build (CI/CD) + `deploy_agents.py` (Agent Lifecycle).
+- **Technology Stack**:
+  - **Language**: Python 3.12+
+  - **Frameworks**: ADK, FastMCP, FastAPI (via FastMCP), Pydantic.
+  - **Infrastructure**: Terraform, Google Cloud Run, Vertex AI Agent Engine, Google Artifact Registry.
+- **Data Flow and Control Flow**:
+  - User sends a query to Gemini Enterprise.
+  - GE invokes the Vertex AI Agent.
+  - In **Production**: Agent extracts OAuth token from `session.state` and adds it to the `Authorization` header.
+  - In **Development**: Agent triggers a browser-based OAuth flow if no token is present.
+  - MCP Server receives the request, verifies the token via Google's `tokeninfo` endpoint, and executes the weather tool logic.
+
+---
+
+## 4. Detailed Design
+
+### ADK Agent (`adk_agent`)
+
+- **Responsibilities**: Reasoning, intent interpretation, and secure tool invocation.
+- **Interfaces/APIs**:
+  - **Input**: Natural language query + Session context from GE.
+  - **Output**: Natural language response + Optional tool call results.
+- **Authentication Logic**:
+  - Implements `mcp_header_provider` to dynamically inject tokens.
+  - Uses `header_provider` in production to bypass ADK's `CredentialManager` and read tokens directly from context state.
+- **State Management**: Uses `ReadonlyContext` to access session data provided by Gemini Enterprise.
+
+### Weather MCP Server (`weather_mcp_server`)
+
+- **Responsibilities**: Tool execution and data fetching from NWS.
+- **Interfaces/APIs**:
+  - `get_alerts(state)`: Fetches active alerts.
+  - `get_forecast(lat, lon)`: Fetches forecast.
+- **Security Middleware**: `OAuthMiddleware` intercepts `/mcp` calls to ensure a valid Bearer token is present and verified against Google's Auth provider.
+
+---
+
+## 5. Database Design
+
+- **Tables/Collections**: This system is largely stateless.
+- **Persistence**: OAuth tokens are stored in the ADK session state (managed by Gemini Enterprise) or local file cache in development.
+
+---
+
+## 6. External Interfaces
+
+- **User Interface**: Gemini Enterprise side-panel / Chat interface.
+- **External APIs**: National Weather Service (api.weather.gov).
+- **Network Protocols**: REST over HTTPS, Model Context Protocol (MCP) over Streamable-HTTP/SSE.
+
+---
+
+## 7. Security Considerations
+
+- **Authentication**: OIDC (OpenID Connect) via Google OAuth 2.0.
+- **Authorization**: Token verification by the MCP server; Cloud Run service restricted via IAM (`roles/run.invoker`).
+- **Data Protection**: Zero-trust approach; tokens are passed in headers and never logged in plain text.
+- **Secret Management**: API keys and OAuth client secrets are managed via Google Secret Manager.
+
+---
+
+## 8. Performance and Scalability
+
+- **Expected Load**: Designed for low-latency interactive chat (< 2s for reasoning + tool call).
+- **Caching Strategy**: NWS API responses are processed in real-time; no cross-session caching implemented.
+- **Scaling Strategy**: Cloud Run and Vertex AI Agent Engine scale horizontally and automatically based on request volume.
+
+---
+
+## 9. Deployment Architecture
+
+- **Environments**: Support for `development` (local) and `production` (Google Cloud).
+- **CI/CD Pipeline**: Cloud Build automates image builds, Terraform applies infrastructure changes, and `deploy_agents.py` handles the Vertex AI Agent deployment.
+- **Infrastructure Diagram**:
+  ```mermaid
+  graph TD
+      CB[Cloud Build] -->|Builds| AR[Artifact Registry]
+      CB -->|Applies| TF[Terraform]
+      TF -->|Creates| CR[Cloud Run]
+      TF -->|Creates| IAM[Service Accounts]
+      CB -->|Invokes| DA[deploy_agents.py]
+      DA -->|Deploys| AE[Agent Engine]
+  ```
+
+---
+
+## 10. Testing Strategy
+
+- **Unit Testing**: `pytest` for agent logic and server tool verification.
+- **Integration Testing**: `direct_test.py` for headless tool execution testing.
+- **Quality Metrics**: Code linting via `ruff`, security scanning via `gitleaks`/`secrets-baseline`.
+
+---
+
+## 11. Appendices
+
+- **Glossary**:
+  - **FastMCP**: A high-level framework for building MCP servers in Python.
+  - **Agent Engine**: Vertex AI's managed runtime for hosting AI agents.
+- **Change History**:
+  - **v1.0.0 (2026-02-25)**: Initial design document creation.
+  - **v1.1.0 (2026-02-25)**: Added trade-off analysis section.
+
+---
+
+## 12. Design Trade-offs
+
+### 12.1 Agent Deployment: Agent Engine vs. Cloud Run
+
+| Feature               | Vertex AI Agent Engine                                                                                                                                                                                                                          | Google Cloud Run                          |
+| :-------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------- |
+| **Primary Use Case**  | Reasoning Agent (ADK Agent)                                                                                                                                                                                                                     | Capability Layer (MCP Servers)            |
+| **Agent Integration** | Native support for ADK primitives                                                                                                                                                                                                               | Requires manual state/auth management     |
+| **Abstraction Level** | Higher (managed agent lifecycle)                                                                                                                                                                                                                | Lower (standard container orchestration)  |
+| **Flexibility**       | Optimized for LLM workflows                                                                                                                                                                                                                     | Highly flexible for any containerized app |
+| **Decision**          | **Agent Engine** is used for the reasoning agent to leverage its native integration with Gemini Enterprise and ADK, while **Cloud Run** hosts the Weather MCP Server for its superior scalability and support for standard serverless patterns. |
+
+### 12.2 Authentication: OAuth 2.0 vs. Service Account
+
+| Feature            | OAuth 2.0 (User Identity)                                                                                                                                                                                   | Service Account (App Identity)        |
+| :----------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------ |
+| **Security Model** | Zero-Trust (User-specific scopes)                                                                                                                                                                           | System-Trust (Shared app permissions) |
+| **User Context**   | Full access to user data/location                                                                                                                                                                           | No inherent user context              |
+| **Complexity**     | Higher (Token exchange, redirects)                                                                                                                                                                          | Lower (Static secrets/IAM)            |
+| **Auditability**   | Granular (User-level)                                                                                                                                                                                       | Generic (App-level)                   |
+| **Decision**       | **OAuth 2.0** is prioritized to ensure the agent acts strictly on behalf of the user, maintaining high security standards and allowing for future personalization (e.g., location-specific weather alerts). |

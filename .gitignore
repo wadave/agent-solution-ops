@@ -200,6 +200,7 @@ client_secrets.json
 .gemini/
 .agent/
 .gemini/
+.adk/
 GEMINI.md
 GEMINI.md
 
