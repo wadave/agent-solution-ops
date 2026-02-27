@@ -257,7 +257,18 @@ This is required because Terraform creates service accounts and grants them IAM 
 - [gcloud CLI](https://cloud.google.com/sdk/docs/install)
 - [uv](https://docs.astral.sh/uv/getting-started/installation/)
 
----
+#### Step 0 — Bootstrap Infrastructure Permissions
+
+The identities running the CI/CD pipeline (both the default Cloud Build service account and the custom CD runner) need administrative permissions to manage project infrastructure across staging and production.
+
+Run the provided setup script from your local machine (using an account with `roles/owner` or `roles/resourcemanager.projectIamAdmin`):
+
+```bash
+chmod +x deployment/scripts/setup_iam.sh
+./deployment/scripts/setup_iam.sh <STAGING_PROJECT_ID> <PROD_PROJECT_ID> <STAGING_PROJECT_NUMBER>
+```
+
+Replace the placeholders with your actual project IDs and the project number of your **staging** project (where the CI/CD runners live). This step ensures that the first pipeline run has the authority to create service accounts, repositories, and Cloud Run services.
 
 #### Step 1 — Create the Terraform state bucket
 

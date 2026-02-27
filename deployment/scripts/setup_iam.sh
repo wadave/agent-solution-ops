@@ -15,15 +15,27 @@
 
 set -e
 
-# Configuration
-STAGING_PROJECT="dw-genai-dev"
-PREPROD_PROJECT="dw-genai-pre-prod"
-PROJECT_NUMBER="496235138247"
+# This script bootstraps the required IAM permissions for the Cloud Build identities.
+# It should be run once by a project owner before triggering the CI/CD pipeline.
+
+usage() {
+  echo "Usage: $0 <STAGING_PROJECT_ID> <PROD_PROJECT_ID> <PROJECT_NUMBER>"
+  echo "Example: $0 my-staging-project my-prod-project 123456789012"
+  exit 1
+}
+
+if [ "$#" -ne 3 ]; then
+  usage
+fi
+
+STAGING_PROJECT=$1
+PREPROD_PROJECT=$2
+PROJECT_NUMBER=$3
 
 # Service Accounts to grant permissions to
 IDENTITIES=(
   "serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com"
-  "serviceAccount:agents-solution-ops-cd@dw-genai-dev.iam.gserviceaccount.com"
+  "serviceAccount:agents-solution-ops-cd@${STAGING_PROJECT}.iam.gserviceaccount.com"
 )
 
 # Projects to grant permissions in
@@ -51,16 +63,23 @@ for PROJECT in "${TARGET_PROJECTS[@]}"; do
   for IDENTITY in "${IDENTITIES[@]}"; do
     echo "Updating permissions for: ${IDENTITY}"
     
+    # Check if identity exists
+    if ! gcloud iam service-accounts describe "$(echo ${IDENTITY} | cut -d ':' -f 2)" --project="$(echo ${IDENTITY} | cut -d '@' -f 2)" &> /dev/null; then
+       # For the default cloudbuild SA, it might not be discoverable via service-accounts describe if it's external, 
+       # but we attempt to grant anyway.
+       echo "  Note: Identity might not exist yet or is external. Attempting to grant roles anyway..."
+    fi
+
     for ROLE in "${ROLES[@]}"; do
       echo "  Granting ${ROLE}..."
       gcloud projects add-iam-policy-binding "${PROJECT}" \
         --member="${IDENTITY}" \
         --role="${ROLE}" \
-        --quiet > /dev/null
+        --quiet > /dev/null || echo "  Warning: Failed to grant ${ROLE} to ${IDENTITY} in ${PROJECT}"
     done
   done
 done
 
 echo "--------------------------------------------------------"
-echo "Successfully granted all roles across all identities and projects."
+echo "Successfully processed projects. Please verify permissions in the Cloud Console."
 echo "--------------------------------------------------------"
