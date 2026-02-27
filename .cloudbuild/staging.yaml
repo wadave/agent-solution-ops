@@ -117,11 +117,11 @@ steps:
     waitFor: ['deploy-adk-agent']
 
 substitutions:
-  _STAGING_PROJECT_ID: YOUR_STAGING_PROJECT_ID
+  _STAGING_PROJECT_ID: dw-genai-dev
   _REGION: us-central1
   # Service account that the deployed Agent Engine runs as (created by Terraform).
   # Format: {project_name}-app@{staging_project_id}.iam.gserviceaccount.com
-  _APP_SERVICE_ACCOUNT_STAGING: YOUR_APP_SA@YOUR_STAGING_PROJECT_ID.iam.gserviceaccount.com
+  _APP_SERVICE_ACCOUNT_STAGING: agents-solution-ops-app@dw-genai-dev.iam.gserviceaccount.com
   # Agentspace authorization ID registered in Gemini Enterprise for staging.
   # Must match {env}-{local.auth_id} in deployment/terraform/gemini_enterprise.tf
   # Default: staging-ui_oauth_token
