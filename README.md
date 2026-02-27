@@ -48,12 +48,14 @@ The Gemini Enterprise Weather Agent is a cloud-native generative AI system deplo
 This system features dynamic authentication switching based on the deployment environment to ensure developer velocity without compromising production security. Additionally, **Model Armor Floor Settings** are enabled project-wide to provide baseline security for all LLM interactions.
 
 ### Model Armor (Security Filtering)
-Model Armor Floor Settings are configured at the project level to automatically inspect and block potential threats in both prompts and model responses. This provides:
+Model Armor Floor Settings are configured at the project level to automatically inspect and block potential threats in both prompts and model responses. These are managed via [model_armor.tf](file:///usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/deployment/terraform/model_armor.tf).
+
+This baseline security provides:
 - **Prompt Injection & Jailbreak Protection**: Detects and blocks adversarial attempts to bypass model constraints.
 - **Harmful Content Filtering**: Enforces Responsible AI (RAI) filters for hate speech, harassment, sexually explicit content, and dangerous activities.
 - **Malicious URI Detection**: Identifies and blocks links to known malicious sites.
 
-Since this is implemented via **Floor Settings**, it applies automatically to all Gemini API calls (via Vertex AI) within the project, requiring no changes to the ADK agent source code.
+For a detailed comparison of security enforcement options, see [MODEL_ARMOR_GUIDE.md](file:///usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/MODEL_ARMOR_GUIDE.md).
 
 ### Environment-Based Switching
 The `ENVIRONMENT` environment variable dictates the authentication flow:
@@ -194,7 +196,7 @@ Deployment is split across two tools, each owning what it is best suited for:
 
 | Layer | Tool | Resources |
 |---|---|---|
-| Infrastructure | Terraform | Cloud Run (MCP server), Artifact Registry, GCS buckets, IAM, Gemini Enterprise OAuth registration |
+| Infrastructure | Terraform | Cloud Run (MCP server), Artifact Registry, GCS buckets, IAM, Gemini Enterprise OAuth registration, **Model Armor Floor Settings** |
 | Agent Engine | `deployment/deploy_agents.py` | Vertex AI Agent Engine (create + update) |
 
 Terraform manages registration but **not** the Agent Engine source/env-vars. `deploy_agents.py` is the single owner of that resource — it creates it on first run and updates source code and env vars on every subsequent run. This avoids the split-ownership problem where two tools fight over env vars.
