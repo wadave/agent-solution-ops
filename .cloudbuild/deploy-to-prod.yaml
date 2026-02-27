@@ -116,15 +116,15 @@ steps:
     waitFor: ['deploy-adk-agent']
 
 substitutions:
-  _PROD_PROJECT_ID: dw-genai-pre-prod
-  _REGION: us-central1
+  _PROD_PROJECT_ID: "dw-genai-pre-prod"
+  _REGION: "us-central1"
   # Service account that the deployed Agent Engine runs as (created by Terraform).
   # Format: {project_name}-app@{prod_project_id}.iam.gserviceaccount.com
-  _APP_SERVICE_ACCOUNT_PROD: agents-solution-ops-app@dw-genai-pre-prod.iam.gserviceaccount.com
+  _APP_SERVICE_ACCOUNT_PROD: "agents-solution-ops-app@dw-genai-pre-prod.iam.gserviceaccount.com"
   # Agentspace authorization ID registered in Gemini Enterprise for prod.
   # Must match {env}-{local.auth_id} in deployment/terraform/gemini_enterprise.tf
   # Default: prod-ui_oauth_token
-  _AUTH_ID_PROD: prod-weather-oauth-token
+  _AUTH_ID_PROD: "prod-weather-oauth-token"
 
 logsBucket: gs://${PROJECT_ID}-agents-solution-ops-logs/build-logs
 options:

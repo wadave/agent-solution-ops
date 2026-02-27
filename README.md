@@ -256,8 +256,8 @@ This is required because Terraform creates service accounts and grants them IAM 
 Terraform state is stored in GCS. The bucket must exist before running `terraform init`. Create it manually:
 
 ```bash
-gcloud storage buckets create gs://<YOUR_CICD_PROJECT_ID>-terraform-state \
-  --project=<YOUR_CICD_PROJECT_ID> \
+gcloud storage buckets create gs://dw-genai-dev-terraform-state \
+  --project=dw-genai-dev \
   --location=us-central1 \
   --uniform-bucket-level-access
 ```
@@ -267,7 +267,7 @@ Then update `deployment/terraform/backend.tf` to match:
 ```hcl
 terraform {
   backend "gcs" {
-    bucket = "<YOUR_CICD_PROJECT_ID>-terraform-state"
+    bucket = "dw-genai-dev-terraform-state"
     prefix = "agent-solution-ops/prod"
   }
 }
@@ -374,10 +374,10 @@ After Step 5, retrieve the service account emails Terraform created and update t
 
 ```bash
 # Staging
-gcloud iam service-accounts list --project=<YOUR_STAGING_PROJECT_ID> --filter="displayName:Agent Service Account"
+gcloud iam service-accounts list --project=dw-genai-dev --filter="displayName:Agent Service Account"
 
 # Prod
-gcloud iam service-accounts list --project=<YOUR_PROD_PROJECT_ID> --filter="displayName:Agent Service Account"
+gcloud iam service-accounts list --project=dw-genai-pre-prod --filter="displayName:Agent Service Account"
 ```
 
 Update `_APP_SERVICE_ACCOUNT_STAGING` and `_APP_SERVICE_ACCOUNT_PROD` in the Cloud Build YAML files accordingly.
