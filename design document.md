@@ -210,3 +210,24 @@
 | **Implementation** | Infrastructure-as-Code (Terraform)                                                                                            | Code-integrated (Vertex AI Client)                                                                            |
 | **Maintenance**  | Centralized (managed via `model_armor.tf`)                                                                                    | Distributed (requires per-agent code updates)                                                                 |
 | **Decision**     | **Floor Settings** are implemented via Terraform to provide a "secure-by-default" project baseline without adding code debt. |
+
+---
+
+## 13. Resilience and Disaster Recovery
+
+### 13.1 Infrastructure Resilience (via Terraform)
+
+Terraform is the primary tool for defining and enforcing the project's resilience. Key patterns include:
+
+- **Multi-Region Failover**: In a production environment, Terraform can define regional replicas of the **Weather MCP Server** (Cloud Run) and **Vertex AI Agent Engine**. A **Global Cloud Load Balancer** with a single anycast IP can then provide automated failover between regions.
+- **Environment Parity**: Terraform ensures that the `staging` and `production` environments are identical except for scale and data, enabling high-fidelity resilience testing in staging before production deployment.
+- **Resource Recovery**: By using `prevent_destroy` flags and automated backup configurations (e.g., for Cloud Storage and Secret Manager), Terraform minimizes the risk of accidental data loss.
+
+### 13.2 Failure Testing Strategies
+
+While not yet implemented, the architecture supports the following future testing paradigms:
+
+- **Automated Failure Injection**: Terraform can provision "faulty" infrastructure (e.g., specific network restrictions or reduced quota limits) to test how the agent handles degraded MCP services.
+- **Red Teaming (Prompt Injection)**: Integrated via **Model Armor**, which provides a project-wide filter against adversarial attacks.
+- **Disaster Recovery Validation**: Periodic "Infrastructure-as-Code" destruction and re-provisioning tests in a standalone project to verify the completeness of the Terraform modules.
+
