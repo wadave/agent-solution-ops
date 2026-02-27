@@ -28,7 +28,8 @@
   ```mermaid
   graph LR
       User((User)) --> GE[Gemini Enterprise UI]
-      GE --> Agent[ADK Weather Agent]
+      GE --> MA[Model Armor Filter]
+      MA --> Agent[ADK Weather Agent]
       Agent --> MCP[Weather MCP Server]
       MCP --> NWS[National Weather Service API]
       Agent -.-> OAuth[Google OAuth 2.0]
@@ -45,6 +46,7 @@
       subgraph "Google Cloud"
           direction TB
           GE_Engine[Gemini Enterprise Engine]
+          MA[Model Armor Floor Settings]
           subgraph "Vertex AI"
               Agent_Engine[Agent Engine / ADK Agent]
           end
@@ -59,7 +61,8 @@
           Google_Auth[Google OAuth Provider]
       end
 
-      GE_Engine -->|Invoke| Agent_Engine
+      GE_Engine -->|Inspect & Block| MA
+      MA -->|Invoke| Agent_Engine
       Agent_Engine -->|Authenticated Tool Call| Cloud_Run
       Cloud_Run -->|API Request| NWS
       GE_Engine <-->|Token Exchange| Google_Auth
@@ -73,7 +76,7 @@
 - **Technology Stack**:
   - **Language**: Python 3.12+
   - **Frameworks**: ADK, FastMCP, FastAPI (via FastMCP), Pydantic.
-  - **Infrastructure**: Terraform, Google Cloud Run, Vertex AI Agent Engine, Google Artifact Registry.
+  - **Infrastructure**: Terraform, Google Cloud Run, Vertex AI Agent Engine, Google Artifact Registry, **Google Model Armor**.
 - **Data Flow and Control Flow**:
   - User sends a query to Gemini Enterprise.
   - GE invokes the Vertex AI Agent.
@@ -124,6 +127,7 @@
 ## 7. Security Considerations
 
 - **Authentication**: OIDC (OpenID Connect) via Google OAuth 2.0.
+- **Security Filtering**: **Model Armor Floor Settings** automatically inspect and block adversarial prompts and harmful model responses across the project.
 - **Authorization**: Token verification by the MCP server; Cloud Run service restricted via IAM (`roles/run.invoker`).
 - **Data Protection**: Zero-trust approach; tokens are passed in headers and never logged in plain text.
 - **Secret Management**: API keys and OAuth client secrets are managed via Google Secret Manager.
@@ -149,6 +153,7 @@
       CB -->|Applies| TF[Terraform]
       TF -->|Creates| CR[Cloud Run]
       TF -->|Creates| IAM[Service Accounts]
+      TF -->|Configures| MA[Model Armor Floor Settings]
       CB -->|Invokes| DA[deploy_agents.py]
       DA -->|Deploys| AE[Agent Engine]
   ```
@@ -171,6 +176,7 @@
 - **Change History**:
   - **v1.0.0 (2026-02-25)**: Initial design document creation.
   - **v1.1.0 (2026-02-25)**: Added trade-off analysis section.
+  - **v1.2.0 (2026-02-27)**: Integrated Model Armor security architecture and comparison guide.
 
 ---
 
@@ -195,3 +201,12 @@
 | **Complexity**     | Higher (Token exchange, redirects)                                                                                                                                                                          | Lower (Static secrets/IAM)            |
 | **Auditability**   | Granular (User-level)                                                                                                                                                                                       | Generic (App-level)                   |
 | **Decision**       | **OAuth 2.0** is prioritized to ensure the agent acts strictly on behalf of the user, maintaining high security standards and allowing for future personalization (e.g., location-specific weather alerts). |
+
+### 12.3 Security Enforcement: Floor Settings vs. Per-request Templates
+
+| Feature          | Project-wide Floor Settings                                                                                                   | Per-request Templates                                                                                         |
+| :--------------- | :---------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------ |
+| **Scope**        | Project-wide (Baseline)                                                                                                       | Per-request (Granular)                                                                                        |
+| **Implementation** | Infrastructure-as-Code (Terraform)                                                                                            | Code-integrated (Vertex AI Client)                                                                            |
+| **Maintenance**  | Centralized (managed via `model_armor.tf`)                                                                                    | Distributed (requires per-agent code updates)                                                                 |
+| **Decision**     | **Floor Settings** are implemented via Terraform to provide a "secure-by-default" project baseline without adding code debt. |
