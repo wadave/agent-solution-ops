@@ -211,6 +211,19 @@
 | **Maintenance**  | Centralized (managed via `model_armor.tf`)                                                                                    | Distributed (requires per-agent code updates)                                                                 |
 | **Decision**     | **Floor Settings** are implemented via Terraform to provide a "secure-by-default" project baseline without adding code debt. |
 
+### 12.4 Domain-Applied AI/ML Expertise
+
+This project demonstrates expertise in applying AI to a specific industry vertical (Meteorology) with enterprise-grade constraints.
+
+| Domain Challenge | AI/ML Solution Pattern | Project Implementation |
+| :--- | :--- | :--- |
+| **Vertical Integration** | Domain-specific API orchestration | Integration with the **National Weather Service (NWS)** API via FastMCP tools. |
+| **Data Constraints** | Structured parsing for LLM ingestion | The `weather_server.py` parses complex GeoJSON into human-readable summaries (`format_alert`, `format_forecast_period`). |
+| **Security KPI** | Red Teaming & Prompt Filtering | **Google Model Armor** implementation for project-wide adversarial threat mitigation. |
+| **Identity KPI** | Verified User Identity for vertical data | **OAuth 2.0 (OIDC)** middleware to ensure the agent only fetches data the user is authorized to see. |
+| **Performance KPI** | Interactive Latency Targets | Architecture optimized for **< 2s response times** using Cloud Run and Vertex AI Agent Engine. |
+
+
 ---
 
 ## 13. Resilience and Disaster Recovery
