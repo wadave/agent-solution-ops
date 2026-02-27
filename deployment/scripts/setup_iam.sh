@@ -15,10 +15,24 @@
 
 set -e
 
-PROJECT_ID="dw-genai-dev"
+# Configuration
+STAGING_PROJECT="dw-genai-dev"
+PREPROD_PROJECT="dw-genai-pre-prod"
 PROJECT_NUMBER="496235138247"
-CB_SA="${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com"
 
+# Service Accounts to grant permissions to
+IDENTITIES=(
+  "serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com"
+  "serviceAccount:agents-solution-ops-cd@dw-genai-dev.iam.gserviceaccount.com"
+)
+
+# Projects to grant permissions in
+TARGET_PROJECTS=(
+  "${STAGING_PROJECT}"
+  "${PREPROD_PROJECT}"
+)
+
+# Roles required for bootstrapping and managing infrastructure
 ROLES=(
   "roles/artifactregistry.admin"
   "roles/iam.serviceAccountAdmin"
@@ -29,14 +43,24 @@ ROLES=(
   "roles/secretmanager.secretAccessor"
 )
 
-echo "Granting required roles to Cloud Build service account: ${CB_SA} in project: ${PROJECT_ID}"
-
-for ROLE in "${ROLES[@]}"; do
-  echo "Granting ${ROLE}..."
-  gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
-    --member="serviceAccount:${CB_SA}" \
-    --role="${ROLE}" \
-    --quiet > /dev/null
+for PROJECT in "${TARGET_PROJECTS[@]}"; do
+  echo "--------------------------------------------------------"
+  echo "Processing project: ${PROJECT}"
+  echo "--------------------------------------------------------"
+  
+  for IDENTITY in "${IDENTITIES[@]}"; do
+    echo "Updating permissions for: ${IDENTITY}"
+    
+    for ROLE in "${ROLES[@]}"; do
+      echo "  Granting ${ROLE}..."
+      gcloud projects add-iam-policy-binding "${PROJECT}" \
+        --member="${IDENTITY}" \
+        --role="${ROLE}" \
+        --quiet > /dev/null
+    done
+  done
 done
 
-echo "Successfully granted all roles."
+echo "--------------------------------------------------------"
+echo "Successfully granted all roles across all identities and projects."
+echo "--------------------------------------------------------"

@@ -35,6 +35,7 @@ locals {
     "logging.googleapis.com",
     "cloudtrace.googleapis.com",
     "telemetry.googleapis.com",
+    "modelarmor.googleapis.com",
   ]
 
   deploy_project_ids = {

@@ -45,7 +45,15 @@ The Gemini Enterprise Weather Agent is a cloud-native generative AI system deplo
 * **Observability (Agent Engine)**: Cloud Logging, Monitoring, and Tracing are natively enabled for the Agent Engine, providing complete visibility into execution logs, latency metrics, and distributed traces.
 
 ## 🔐 Authentication & Security
-This system features dynamic authentication switching based on the deployment environment to ensure developer velocity without compromising production security.
+This system features dynamic authentication switching based on the deployment environment to ensure developer velocity without compromising production security. Additionally, **Model Armor Floor Settings** are enabled project-wide to provide baseline security for all LLM interactions.
+
+### Model Armor (Security Filtering)
+Model Armor Floor Settings are configured at the project level to automatically inspect and block potential threats in both prompts and model responses. This provides:
+- **Prompt Injection & Jailbreak Protection**: Detects and blocks adversarial attempts to bypass model constraints.
+- **Harmful Content Filtering**: Enforces Responsible AI (RAI) filters for hate speech, harassment, sexually explicit content, and dangerous activities.
+- **Malicious URI Detection**: Identifies and blocks links to known malicious sites.
+
+Since this is implemented via **Floor Settings**, it applies automatically to all Gemini API calls (via Vertex AI) within the project, requiring no changes to the ADK agent source code.
 
 ### Environment-Based Switching
 The `ENVIRONMENT` environment variable dictates the authentication flow:
