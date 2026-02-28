@@ -75,6 +75,11 @@ graph TB
         subgraph "User Interface"
         UI["Gemini Enterprise UI"]
         end
+
+        subgraph "Security"
+            MA(["Model Armor<br/>Floor Settings"])
+        end
+
         subgraph "Gemini Enterprise"
             AS["Gemini Enterprise Engine"]
             RE["Agent Engine<br/>ADK Agent"]
@@ -97,6 +102,9 @@ graph TB
     RE -->|MCP Tool Call| MCP
     MCP -->|Fetch Weather| NWS
 
+    AS -.->|Filtered by| MA
+    RE -.->|Filtered by| MA
+
     AS -.->|OAuth Flow| OAUTH
     OAUTH -.->|Tokens| AS
     AS -.->|Pass Token| MCP
@@ -107,6 +115,7 @@ graph TB
     style MCP fill:#e1ffe1,stroke:#333,stroke-width:2px,color:#000
     style OAUTH fill:#ffe1e1,stroke:#333,stroke-width:2px,color:#000
     style NWS fill:#f5f5f5,stroke:#333,stroke-width:2px,color:#000
+    style MA fill:#fff5f5,stroke:#cc0000,stroke-width:2px,stroke-dasharray: 5 5,color:#cc0000
 ```
 
 **Key Feature:** The agent automatically switches between development and production authentication modes based on the `ENVIRONMENT` variable:
