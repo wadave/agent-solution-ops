@@ -51,8 +51,12 @@ logger = logging.getLogger(__name__)
 
 
 _EXCLUDE = {
-    ".env", ".env.example", "client_secret.json", "client_secrets.json",
-    "credentials.json", "token.json",
+    ".env",
+    ".env.example",
+    "client_secret.json",
+    "client_secrets.json",
+    "credentials.json",
+    "token.json",
 }
 _EXCLUDE_DIRS = {"__pycache__", ".gemini"}
 _EXCLUDE_SUFFIXES = {".pyc", ".pyo", ".ipynb"}
@@ -213,7 +217,9 @@ def main():
                         "to migrate to the current SDK. GE registration will be "
                         "refreshed by Terraform on the next run."
                     )
-                    client.agent_engines.delete(name=existing_agents[display_name], force=True)
+                    client.agent_engines.delete(
+                        name=existing_agents[display_name], force=True
+                    )
                     remote_agent = client.agent_engines.create(config=config)
                 else:
                     raise

@@ -243,4 +243,3 @@ While not yet implemented, the architecture supports the following future testin
 - **Automated Failure Injection**: Terraform can provision "faulty" infrastructure (e.g., specific network restrictions or reduced quota limits) to test how the agent handles degraded MCP services.
 - **Red Teaming (Prompt Injection)**: Integrated via **Model Armor**, which provides a project-wide filter against adversarial attacks.
 - **Disaster Recovery Validation**: Periodic "Infrastructure-as-Code" destruction and re-provisioning tests in a standalone project to verify the completeness of the Terraform modules.
-

@@ -177,6 +177,7 @@ cython_debug/
 *.tfvars
 .terraform*
 .terraform/
+terraform_plan.txt
 
 # ==========================
 # Project Specific / Secrets

@@ -59,13 +59,13 @@ for PROJECT in "${TARGET_PROJECTS[@]}"; do
   echo "--------------------------------------------------------"
   echo "Processing project: ${PROJECT}"
   echo "--------------------------------------------------------"
-  
+
   for IDENTITY in "${IDENTITIES[@]}"; do
     echo "Updating permissions for: ${IDENTITY}"
-    
+
     # Check if identity exists
     if ! gcloud iam service-accounts describe "$(echo ${IDENTITY} | cut -d ':' -f 2)" --project="$(echo ${IDENTITY} | cut -d '@' -f 2)" &> /dev/null; then
-       # For the default cloudbuild SA, it might not be discoverable via service-accounts describe if it's external, 
+       # For the default cloudbuild SA, it might not be discoverable via service-accounts describe if it's external,
        # but we attempt to grant anyway.
        echo "  Note: Identity might not exist yet or is external. Attempting to grant roles anyway..."
     fi

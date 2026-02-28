@@ -36,7 +36,7 @@ resource "google_cloud_run_v2_service" "mcp_server" {
   template {
     containers {
       image = "${var.region}-docker.pkg.dev/${each.value}/mcp-server-repo/weather-mcp-server:${var.mcp_image_tag}"
-      
+
       env {
         name  = "GOOGLE_CLIENT_ID"
         value = local.oauth_client_id

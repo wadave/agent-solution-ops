@@ -1,12 +1,9 @@
-[tool.setuptools.packages.find]
-where = ["src"]
-
 [dependency-groups]
 dev = [
   "ipykernel>=7.0.1",
   "pre-commit>=4.5.1",
   "pytest>=9.0.2",
-  "pytest-asyncio>=1.3.0",
+  "pytest-asyncio>=1.3.0"
 ]
 
 [project]
@@ -25,18 +22,23 @@ dependencies = [
   "google-cloud-logging>=3.13.0",
   "google-genai>=1.43.0",
   "pip>=25.2",
+  "pre-commit>=4.5.1",
   "pydantic>=2.12.5",
   "python-dotenv>=1.2.1",
+  "ruff>=0.15.2"
 ]
+
+[project.optional-dependencies]
+lint = [
+  "codespell>=2.4.1",
+  "ruff>=0.15.2",
+  "ty>=0.0.18"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [[tool.uv.index]]
 name = "pypi"
 url = "https://pypi.org/simple"
 default = true
-
-[project.optional-dependencies]
-lint = [
-    "codespell>=2.4.1",
-    "ruff>=0.15.2",
-    "ty>=0.0.18",
-]
