@@ -211,6 +211,8 @@ Deployment is split across two tools, each owning what it is best suited for:
 Terraform manages registration but **not** the Agent Engine source/env-vars. `deploy_agents.py` is the single owner of that resource — it creates it on first run and updates source code and env vars on every subsequent run. This avoids the split-ownership problem where two tools fight over env vars.
 
 ### CI/CD Pipeline
+You would need to push the repository to GitHub to trigger the CI/CD pipeline.
+
 
 Push to the configured branch triggers Cloud Build:
 

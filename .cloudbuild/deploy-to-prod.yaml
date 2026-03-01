@@ -56,6 +56,16 @@ steps:
           -target='google_artifact_registry_repository.mcp_repo["prod"]' \
           -target='google_cloud_run_v2_service.mcp_server["prod"]' \
           -target='google_cloud_run_v2_service_iam_binding.mcp_server_public_access["prod"]'
+    env:
+      - 'TF_VAR_prod_project_id=${_PROD_PROJECT_ID}'
+      - 'TF_VAR_staging_project_id=${_STAGING_PROJECT_ID}'
+      - 'TF_VAR_cicd_runner_project_id=${_CICD_RUNNER_PROJECT_ID}'
+      - 'TF_VAR_host_connection_name=${_HOST_CONNECTION_NAME}'
+      - 'TF_VAR_staging_connection_name=${_STAGING_CONNECTION_NAME}'
+      - 'TF_VAR_repository_name=${_REPOSITORY_NAME}'
+      - 'TF_VAR_repository_owner=${_REPOSITORY_OWNER}'
+      - 'TF_VAR_ge_app_staging=${_GE_APP_STAGING}'
+      - 'TF_VAR_ge_app_prod=${_GE_APP_PROD}'
 
   # Extract the Cloud Run MCP server URL after Terraform creates the service.
   - name: gcr.io/cloud-builders/gcloud
@@ -113,6 +123,16 @@ steps:
         terraform apply -auto-approve \
           -target='module.gemini_enterprise_oauth["prod"]' \
           -target='module.gemini_enterprise_agent_engine_register["prod"]'
+    env:
+      - 'TF_VAR_prod_project_id=${_PROD_PROJECT_ID}'
+      - 'TF_VAR_staging_project_id=${_STAGING_PROJECT_ID}'
+      - 'TF_VAR_cicd_runner_project_id=${_CICD_RUNNER_PROJECT_ID}'
+      - 'TF_VAR_host_connection_name=${_HOST_CONNECTION_NAME}'
+      - 'TF_VAR_staging_connection_name=${_STAGING_CONNECTION_NAME}'
+      - 'TF_VAR_repository_name=${_REPOSITORY_NAME}'
+      - 'TF_VAR_repository_owner=${_REPOSITORY_OWNER}'
+      - 'TF_VAR_ge_app_staging=${_GE_APP_STAGING}'
+      - 'TF_VAR_ge_app_prod=${_GE_APP_PROD}'
     waitFor: ['deploy-adk-agent']
 
 substitutions:
@@ -125,6 +145,14 @@ substitutions:
   # Must match {env}-{local.auth_id} in deployment/terraform/gemini_enterprise.tf
   # Default: prod-ui_oauth_token
   _AUTH_ID_PROD: "prod-weather-oauth-token"
+  _STAGING_PROJECT_ID: "dw-genai-dev"
+  _CICD_RUNNER_PROJECT_ID: "dw-genai-dev"
+  _HOST_CONNECTION_NAME: "git-agent-solution-ops"
+  _STAGING_CONNECTION_NAME: "git-adk-mcp-oauth"
+  _REPOSITORY_NAME: "agent-solution-ops"
+  _REPOSITORY_OWNER: "wadave"
+  _GE_APP_STAGING: "ge-app-dev_1769811308679"
+  _GE_APP_PROD: "ge-app-dev_1769811308679"
 
 logsBucket: gs://${PROJECT_ID}-agents-solution-ops-logs/build-logs
 options:

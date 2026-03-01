@@ -21,19 +21,16 @@ variable "project_name" {
 variable "prod_project_id" {
   type        = string
   description = "**Production** Google Cloud Project ID for resource deployment."
-
 }
 
 variable "staging_project_id" {
   type        = string
   description = "**Staging** Google Cloud Project ID for resource deployment."
-
 }
 
 variable "cicd_runner_project_id" {
   type        = string
   description = "Google Cloud Project ID where CI/CD pipelines will execute."
-
 }
 
 variable "region" {
@@ -45,19 +42,16 @@ variable "region" {
 variable "host_connection_name" {
   description = "Name of the host connection to create in Cloud Build (used by cicd_runner_project_id for PR checks and prod deploy)"
   type        = string
-
 }
 
 variable "staging_connection_name" {
   description = "Name of the Cloud Build connection in the staging project for the CD pipeline trigger"
   type        = string
-
 }
 
 variable "repository_name" {
   description = "Name of the repository you'd like to connect to Cloud Build"
   type        = string
-
 }
 
 variable "app_sa_roles" {
@@ -109,7 +103,6 @@ variable "cicd_sa_deployment_required_roles" {
 variable "repository_owner" {
   description = "Owner of the Git repository - username or organization"
   type        = string
-
 }
 
 
@@ -167,13 +160,11 @@ variable "google_client_secret" {
 variable "ge_app_staging" {
   type        = string
   description = "Gemini Enterprise App ID for Staging"
-
 }
 
 variable "ge_app_prod" {
   type        = string
   description = "Gemini Enterprise App ID for Production"
-
 }
 
 variable "oauth_client_id_secret_name" {
