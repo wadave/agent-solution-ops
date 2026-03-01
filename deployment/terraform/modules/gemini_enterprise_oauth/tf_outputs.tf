@@ -66,9 +66,20 @@ resource "null_resource" "deregister_authorization_from_gemini_enterprise" {
     local_file.out_deregister_authorization_from_gemini_enterprise
   ]
 
+  triggers = {
+    deregister_script = local.deregister_authorization_from_gemini_enterprise_tpl
+  }
+
   provisioner "local-exec" {
     when        = destroy
-    command     = "./${path.module}/build/_deregister_authorization_from_gemini_enterprise_tpl.sh"
+    command     = <<EOT
+      mkdir -p ${path.module}/build
+      cat << 'EOF' > ${path.module}/build/_deregister_authorization_from_gemini_enterprise_tpl.sh
+      ${try(self.triggers.deregister_script, "echo 'Skipping deregistration because triggers were null in state.'")}
+      EOF
+      chmod +x ${path.module}/build/_deregister_authorization_from_gemini_enterprise_tpl.sh
+      ./${path.module}/build/_deregister_authorization_from_gemini_enterprise_tpl.sh
+    EOT
     interpreter = ["/bin/bash", "-c"]
   }
 }
