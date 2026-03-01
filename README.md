@@ -16,7 +16,7 @@ Complete guide for setting up an ADK agent with dual-mode OAuth authentication t
 The Gemini Enterprise Weather Agent is a cloud-native generative AI system deployed on Google Cloud. It leverages the Gemini Enterprise Engine and an ADK Agent to interpret natural language weather queries. By communicating securely with a custom FastMCP Weather Server hosted on Cloud Run, the agent fetches real-time meteorological data from the National Weather Service (NWS) API and delivers conversational insights back to the user.
 
 ---
-![architecture](./assets/ge-adk-mcp.jpeg)
+![architecture](./assets/ge-adk-mcp.png)
 
 This project demonstrates how to build an ADK agent that:
 
@@ -315,32 +315,32 @@ terraform {
 }
 ```
 
-#### Step 2 — Configure `deployment/terraform/variables.tf`
+#### Step 2 — Configure `deployment/terraform/terraform.tfvars`
 
-All Terraform variables are stored as `default` values directly in `variables.tf` — no separate `.tfvars` file is needed (and `*.tfvars` is git-ignored anyway). Edit the placeholder defaults:
+All Terraform configuration is defined via variables. Create a `terraform.tfvars` file in the `deployment/terraform` directory (this file is git-ignored) to set your project-specific values:
 
 ```hcl
-variable "prod_project_id"        { default = "your-production-project-id" }
-variable "staging_project_id"     { default = "your-staging-project-id" }
-variable "cicd_runner_project_id" { default = "your-cicd-project-id" }   # often same as prod
-variable "repository_owner"       { default = "your-github-org-or-username" }
-variable "repository_name"        { default = "your-github-repo-name" }
-variable "region"                 { default = "us-central1" }
-variable "ge_app_staging"         { default = "your-ge-app-id-staging" }
-variable "ge_app_prod"            { default = "your-ge-app-id-prod" }
+prod_project_id        = "your-production-project-id"
+staging_project_id     = "your-staging-project-id"
+cicd_runner_project_id = "your-cicd-project-id"   # often same as prod
+repository_owner       = "your-github-org-or-username"
+repository_name        = "your-github-repo-name"
+region                 = "us-central1"
+ge_app_staging         = "your-ge-app-id-staging"
+ge_app_prod            = "your-ge-app-id-prod"
 ```
 
-Also update the Cloud Build connection names to match what you'll create in Step 3:
+Also configure the Cloud Build connection names to match what you'll create in Step 3:
 
 ```hcl
-variable "host_connection_name"    { default = "your-cicd-project-connection-name" }
-variable "staging_connection_name" { default = "your-staging-project-connection-name" }
+host_connection_name    = "your-cicd-project-connection-name"
+staging_connection_name = "your-staging-project-connection-name"
 ```
 
 To enable Gemini Enterprise OAuth registration, set the name of the Secret Manager secret that holds your OAuth client JSON:
 
 ```hcl
-variable "oauth_client_id_secret_name" { default = "your-oauth-secret-name" }
+oauth_client_id_secret_name = "your-oauth-secret-name"
 ```
 
 Leave it as `""` to skip GE registration during the initial bootstrap. You can enable it in a later apply once the infrastructure is stable.
