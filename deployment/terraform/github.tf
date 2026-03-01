@@ -86,24 +86,8 @@ resource "google_cloudbuildv2_connection" "github_connection" {
 }
 
 
-# Repository link in the CICD runner project (cicd_runner_project_id) for PR checks and prod deploy.
-resource "google_cloudbuildv2_repository" "repo" {
-  project           = var.cicd_runner_project_id
-  location          = var.region
-  name              = var.repository_name
-  parent_connection = var.create_cb_connection ? "projects/${var.cicd_runner_project_id}/locations/${var.region}/connections/${var.host_connection_name}" : google_cloudbuildv2_connection.github_connection[0].id
-  remote_uri        = "https://github.com/${var.repository_owner}/${var.repository_name}.git"
-  depends_on = [
-    resource.google_project_service.cicd_services,
-    resource.google_project_service.deploy_project_services,
-    data.github_repository.existing_repo,
-    github_repository.repo,
-    google_cloudbuildv2_connection.github_connection,
-  ]
-}
-
-# Repository link in the staging project (staging_project_id) for the CD pipeline trigger.
-# Uses the staging connection (staging_connection_name).
+# Single repository link shared by all three Cloud Build triggers.
+# Uses the staging connection (staging_connection_name) in staging_project_id.
 resource "google_cloudbuildv2_repository" "repo_staging" {
   project           = var.staging_project_id
   location          = var.region

@@ -21,7 +21,7 @@ resource "google_cloudbuild_trigger" "pr_checks" {
   service_account = resource.google_service_account.cicd_runner_sa.id
 
   repository_event_config {
-    repository = google_cloudbuildv2_repository.repo.id
+    repository = google_cloudbuildv2_repository.repo_staging.id
     pull_request {
       branch = "^(main|staging)$"
     }
@@ -40,7 +40,7 @@ resource "google_cloudbuild_trigger" "pr_checks" {
   depends_on = [
     resource.google_project_service.cicd_services,
     resource.google_project_service.deploy_project_services,
-    google_cloudbuildv2_repository.repo,
+    google_cloudbuildv2_repository.repo_staging,
   ]
 }
 
@@ -100,7 +100,7 @@ resource "google_cloudbuild_trigger" "deploy_to_prod_pipeline" {
   description     = "Trigger for deployment to production"
   service_account = resource.google_service_account.cicd_runner_sa.id
   repository_event_config {
-    repository = google_cloudbuildv2_repository.repo.id
+    repository = google_cloudbuildv2_repository.repo_staging.id
     push {
       branch = "main"
     }
@@ -128,6 +128,6 @@ resource "google_cloudbuild_trigger" "deploy_to_prod_pipeline" {
   depends_on = [
     resource.google_project_service.cicd_services,
     resource.google_project_service.deploy_project_services,
-    google_cloudbuildv2_repository.repo,
+    google_cloudbuildv2_repository.repo_staging,
   ]
 }
