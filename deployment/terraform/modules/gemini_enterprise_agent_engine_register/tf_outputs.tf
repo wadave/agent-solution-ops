@@ -78,7 +78,7 @@ resource "null_resource" "deregister_agent_engine_from_gemini_enterprise" {
     command     = <<EOT
       mkdir -p ${path.module}/build
       cat << 'EOF' > ${path.module}/build/_deregister_agent_engine_from_gemini_enterprise_tpl.sh
-      ${self.triggers.deregister_script}
+      ${try(self.triggers.deregister_script, "echo 'Skipping deregistration because triggers were null in state.'")}
       EOF
       chmod +x ${path.module}/build/_deregister_agent_engine_from_gemini_enterprise_tpl.sh
       ./${path.module}/build/_deregister_agent_engine_from_gemini_enterprise_tpl.sh
