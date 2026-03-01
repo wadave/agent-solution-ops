@@ -67,6 +67,7 @@ steps:
       - 'TF_VAR_repository_owner=${_REPOSITORY_OWNER}'
       - 'TF_VAR_ge_app_staging=${_GE_APP_STAGING}'
       - 'TF_VAR_ge_app_prod=${_GE_APP_PROD}'
+      - 'TF_VAR_oauth_client_id_secret_name=${_OAUTH_CLIENT_ID_SECRET_NAME}'
 
   # Extract the Cloud Run MCP server URL after Terraform creates the service.
   - name: gcr.io/cloud-builders/gcloud
@@ -136,6 +137,7 @@ steps:
       - 'TF_VAR_repository_owner=${_REPOSITORY_OWNER}'
       - 'TF_VAR_ge_app_staging=${_GE_APP_STAGING}'
       - 'TF_VAR_ge_app_prod=${_GE_APP_PROD}'
+      - 'TF_VAR_oauth_client_id_secret_name=${_OAUTH_CLIENT_ID_SECRET_NAME}'
     waitFor: ['deploy-adk-agent']
 
 # All substitution values are injected by the Cloud Build trigger defined in
