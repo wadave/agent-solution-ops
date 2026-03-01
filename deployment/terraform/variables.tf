@@ -15,7 +15,7 @@
 variable "project_name" {
   type        = string
   description = "Project name used as a base for resource naming"
-
+  default     = "agents-solution-ops"
 }
 
 variable "prod_project_id" {
@@ -134,6 +134,7 @@ variable "create_repository" {
 variable "feedback_logs_filter" {
   type        = string
   description = "Log Sink filter for capturing feedback data. Captures logs where the `log_type` field is `feedback`."
+  default     = "jsonPayload.log_type=\"feedback\" jsonPayload.service_name=\"agents-solution-ops\""
 }
 
 variable "mcp_image_tag" {
@@ -144,12 +145,14 @@ variable "mcp_image_tag" {
 variable "google_client_id" {
   type        = string
   description = "Google Client ID for GCP authentication in MCP server"
+  default     = ""
 }
 
 variable "google_client_secret" {
   type        = string
   description = "Google Client Secret for GCP authentication in MCP server"
   sensitive   = true
+  default     = ""
 }
 
 variable "ge_app_staging" {
@@ -165,9 +168,11 @@ variable "ge_app_prod" {
 variable "oauth_client_id_secret_name" {
   type        = string
   description = "Secret Manager secret name containing the OAuth client credentials JSON (web app format). Leave empty to skip Gemini Enterprise OAuth registration."
+  default     = "client_secret"
 }
 
 variable "agents_region" {
   type        = string
   description = "Gemini Enterprise region. Typically 'global' for Discovery Engine."
+  default     = "global"
 }
