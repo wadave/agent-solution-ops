@@ -3,70 +3,58 @@
 Complete guide for setting up an ADK agent with dual-mode OAuth authentication to access MCP (Model Context Protocol) services.
 
 ## Table of Contents
-- [High-Level Component Diagram](#high-level-component-diagram)
-- [Quick Start](#quick-start)
-  - [Prerequisites](#prerequisites)
-  - [1. Clone and Setup](#1-clone-and-setup)
-  - [2. Configure Google OAuth](#2-configure-google-oauth)
-  - [3. Set Environment Variables](#3-set-environment-variables)
-  - [4. Run Locally](#4-run-locally)
-- [Deployment](#deployment)
-  - [Architecture](#architecture)
-  - [CI/CD Pipeline](#cicd-pipeline)
-  - [One-time Setup](#one-time-setup)
-    - [Prerequisites](#prerequisites-1)
-    - [Step 1 — Create the Terraform state bucket](#step-1--create-the-terraform-state-bucket)
-    - [Step 2 — Configure `deployment/terraform/variables.tf`](#step-2--configure-deploymentterraformvariablestf)
-    - [Step 3 — Set up Cloud Build GitHub connections](#step-3--set-up-cloud-build-github-connections)
-    - [Step 4 — Configure Cloud Build substitutions](#step-4--configure-cloud-build-substitutions)
-    - [Step 5 — Bootstrap Terraform](#step-5--bootstrap-terraform)
-    - [Step 6 — Update Cloud Build substitutions with created service account emails](#step-6--update-cloud-build-substitutions-with-created-service-account-emails)
-    - [Step 7 — Push to trigger CI/CD](#step-7--push-to-trigger-cicd)
-    - [Ongoing IAM changes](#ongoing-iam-changes)
-    - [Manual operations (outside CI/CD)](#manual-operations-outside-cicd)
 - [What This Project Does](#what-this-project-does)
-  - [Authentication Architecture](#authentication-architecture)
+- [Architecture & Components](#architecture--components)
+- [Authentication & Security](#authentication--security)
+- [Quick Start](#quick-start)
+- [Deployment](#deployment)
 - [Environment Variables Reference](#environment-variables-reference)
-  - [Agent (`src/adk_agent/.env`)](#agent-srcadk_agentenv)
-  - [MCP Server (`src/mcp_servers/weather_mcp_server/.env`)](#mcp-server-srcmcpserversweathermcpserverenv)
 - [Troubleshooting](#troubleshooting)
-  - [Cloud Build fails with 403 downloading Python packages](#cloud-build-fails-with-403-downloading-python-packages)
 
-## 📖 Overview
+## What This Project Does
+
 The Gemini Enterprise Weather Agent is a cloud-native generative AI system deployed on Google Cloud. It leverages the Gemini Enterprise Engine and an ADK Agent to interpret natural language weather queries. By communicating securely with a custom FastMCP Weather Server hosted on Cloud Run, the agent fetches real-time meteorological data from the National Weather Service (NWS) API and delivers conversational insights back to the user.
 
 ---
 ![architecture](./assets/ge-adk-mcp.jpeg)
-## 🏗️ Architecture Component Summary
+
+This project demonstrates how to build an ADK agent that:
+
+1. **Uses OAuth 2.0 authentication** to access protected MCP servers
+2. **Automatically switches** between development and production authentication modes
+3. **Handles OAuth flows differently** for local testing vs. Gemini Enterprise deployment
+4. **Calls MCP tools** (weather forecasts) with authenticated requests
+
+### Authentication Architecture
+
+**Development Mode (Local Testing):**
+```
+User → ADK Web UI → Agent (OAuth2Auth) → Google OAuth → Token → MCP Server → Weather API
+```
+- Uses `auth_scheme` and `auth_credential` to trigger OAuth flow
+- ADK manages token storage and refresh automatically
+
+**Production Mode (Gemini Enterprise):**
+```
+User → Gemini Enterprise UI → Agent (header_provider) → Context Token → MCP Server → Weather API
+```
+- `McpToolset` is created with `header_provider=mcp_header_provider` and **no** `auth_scheme`
+- Omitting `auth_scheme` ensures `_credentials_manager = None` in `MCPTool`, so the credential check is skipped and `header_provider` is called directly on every request
+- `mcp_header_provider` reads the OAuth token from `session.state` keyed by `AUTH_ID`
+- Token is injected into MCP requests via `Authorization: Bearer` header
+
+The agent **automatically selects** the correct mode based on the `ENVIRONMENT` variable (`"development"` → dev mode, anything else → production mode).
+
+---
+---
+## Architecture & Components
+
 * **Gemini Enterprise Engine & UI**: Handles user interactions, intent recognition, and dynamic token-passing.
 * **ADK Agent**: The reasoning engine that decides when and how to invoke the Weather MCP server.
 * **Weather MCP Server (Cloud Run)**: A FastMCP-based microservice that exposes weather-fetching tools and handles API requests to the NWS.
 * **Identity Provider**: Manages OAuth 2.0 authentication for secure tool execution.
 * **Observability (Agent Engine)**: Cloud Logging, Monitoring, and Tracing are natively enabled for the Agent Engine, providing complete visibility into execution logs, latency metrics, and distributed traces.
 
-## 🔐 Authentication & Security
-This system features dynamic authentication switching based on the deployment environment to ensure developer velocity without compromising production security. Additionally, **Model Armor Floor Settings** are enabled project-wide to provide baseline security for all LLM interactions.
-
-### Model Armor (Security Filtering)
-Model Armor Floor Settings are configured at the project level to automatically inspect and block potential threats in both prompts and model responses. These are managed via [model_armor.tf](file:///usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/deployment/terraform/model_armor.tf).
-
-This baseline security provides:
-- **Prompt Injection & Jailbreak Protection**: Detects and blocks adversarial attempts to bypass model constraints.
-- **Harmful Content Filtering**: Enforces Responsible AI (RAI) filters for hate speech, harassment, sexually explicit content, and dangerous activities.
-- **Malicious URI Detection**: Identifies and blocks links to known malicious sites.
-
-For a detailed comparison of security enforcement options, see [MODEL_ARMOR_GUIDE.md](file:///usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/MODEL_ARMOR_GUIDE.md).
-
-### Environment-Based Switching
-The `ENVIRONMENT` environment variable dictates the authentication flow:
-
-**Development (`ENVIRONMENT=development`)**:
-* Uses OAuth2Auth with client credentials.
-* Triggers a browser-based OAuth flow for the developer to authenticate locally.
-
-**Production (`ENVIRONMENT=production`)**:
-* Uses server-to-server authentication (e.g., Google Cloud Service Accounts or headless OAuth).
-* Tokens are securely passed from the Gemini Enterprise Engine to the MCP Server via authorization headers.
 ## High-Level Component Diagram
 
 ```mermaid
@@ -125,9 +113,31 @@ graph TB
 **Use Cases:**
 - Local testing with `adk web`
 - Deployed agents on Vertex AI Agent Engine registered to Gemini Enterprise
-
 ---
+## 🔐 Authentication & Security
+This system features dynamic authentication switching based on the deployment environment to ensure developer velocity without compromising production security. Additionally, **Model Armor Floor Settings** are enabled project-wide to provide baseline security for all LLM interactions.
 
+### Model Armor (Security Filtering)
+Model Armor Floor Settings are configured at the project level to automatically inspect and block potential threats in both prompts and model responses. These are managed via [model_armor.tf](file:///usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/deployment/terraform/model_armor.tf).
+
+This baseline security provides:
+- **Prompt Injection & Jailbreak Protection**: Detects and blocks adversarial attempts to bypass model constraints.
+- **Harmful Content Filtering**: Enforces Responsible AI (RAI) filters for hate speech, harassment, sexually explicit content, and dangerous activities.
+- **Malicious URI Detection**: Identifies and blocks links to known malicious sites.
+
+For a detailed comparison of security enforcement options, see [MODEL_ARMOR_GUIDE.md](file:///usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/MODEL_ARMOR_GUIDE.md).
+
+### Environment-Based Switching
+The `ENVIRONMENT` environment variable dictates the authentication flow:
+
+**Development (`ENVIRONMENT=development`)**:
+* Uses OAuth2Auth with client credentials.
+* Triggers a browser-based OAuth flow for the developer to authenticate locally.
+
+**Production (`ENVIRONMENT=production`)**:
+* Uses server-to-server authentication (e.g., Google Cloud Service Accounts or headless OAuth).
+* Tokens are securely passed from the Gemini Enterprise Engine to the MCP Server via authorization headers.
+---
 ## Quick Start
 
 ### Prerequisites
@@ -196,7 +206,7 @@ uv run adk web src --port 8501 --reload_agents
 Visit http://localhost:8501 and try: "What's the weather in Los Angeles?"
 
 ---
-
+---
 ## Deployment
 
 ### Architecture
@@ -487,38 +497,7 @@ uvx agent-starter-pack@0.36.0 register-gemini-enterprise
 Handled automatically by Terraform in CI/CD when `oauth_client_id_secret_name` is set. The Makefile target is available for manual registration or re-registration.
 
 ---
-
-## What This Project Does
-
-This project demonstrates how to build an ADK agent that:
-
-1. **Uses OAuth 2.0 authentication** to access protected MCP servers
-2. **Automatically switches** between development and production authentication modes
-3. **Handles OAuth flows differently** for local testing vs. Gemini Enterprise deployment
-4. **Calls MCP tools** (weather forecasts) with authenticated requests
-
-### Authentication Architecture
-
-**Development Mode (Local Testing):**
-```
-User → ADK Web UI → Agent (OAuth2Auth) → Google OAuth → Token → MCP Server → Weather API
-```
-- Uses `auth_scheme` and `auth_credential` to trigger OAuth flow
-- ADK manages token storage and refresh automatically
-
-**Production Mode (Gemini Enterprise):**
-```
-User → Gemini Enterprise UI → Agent (header_provider) → Context Token → MCP Server → Weather API
-```
-- `McpToolset` is created with `header_provider=mcp_header_provider` and **no** `auth_scheme`
-- Omitting `auth_scheme` ensures `_credentials_manager = None` in `MCPTool`, so the credential check is skipped and `header_provider` is called directly on every request
-- `mcp_header_provider` reads the OAuth token from `session.state` keyed by `AUTH_ID`
-- Token is injected into MCP requests via `Authorization: Bearer` header
-
-The agent **automatically selects** the correct mode based on the `ENVIRONMENT` variable (`"development"` → dev mode, anything else → production mode).
-
 ---
-
 ## Environment Variables Reference
 
 ### Agent (`src/adk_agent/.env`)
@@ -547,7 +526,7 @@ The agent **automatically selects** the correct mode based on the `ENVIRONMENT` 
 | `OAUTH_REDIRECT_URI_PROD` | No | Production redirect URI. |
 
 ---
-
+---
 ## Troubleshooting
 
 ### Cloud Build fails with 403 downloading Python packages
