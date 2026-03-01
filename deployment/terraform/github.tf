@@ -86,7 +86,7 @@ resource "google_cloudbuildv2_connection" "github_connection" {
 }
 
 
-# Repository link in the CICD runner project (dw-genai-pre-prod) for PR checks and prod deploy.
+# Repository link in the CICD runner project (cicd_runner_project_id) for PR checks and prod deploy.
 resource "google_cloudbuildv2_repository" "repo" {
   project           = var.cicd_runner_project_id
   location          = var.region
@@ -102,8 +102,8 @@ resource "google_cloudbuildv2_repository" "repo" {
   ]
 }
 
-# Repository link in the staging project (dw-genai-dev) for the CD pipeline trigger.
-# Uses the staging connection (git-adk-mcp-oauth).
+# Repository link in the staging project (staging_project_id) for the CD pipeline trigger.
+# Uses the staging connection (staging_connection_name).
 resource "google_cloudbuildv2_repository" "repo_staging" {
   project           = var.staging_project_id
   location          = var.region

@@ -139,24 +139,8 @@ steps:
       - 'TF_VAR_ge_app_prod=${_GE_APP_PROD}'
     waitFor: ['deploy-adk-agent']
 
-substitutions:
-  _STAGING_PROJECT_ID: dw-genai-dev
-  _REGION: us-central1
-  # Service account that the deployed Agent Engine runs as (created by Terraform).
-  # Format: {project_name}-app@{staging_project_id}.iam.gserviceaccount.com
-  _APP_SERVICE_ACCOUNT_STAGING: agents-solution-ops-app@dw-genai-dev.iam.gserviceaccount.com
-  # Agentspace authorization ID registered in Gemini Enterprise for staging.
-  # Must match {env}-{local.auth_id} in deployment/terraform/gemini_enterprise.tf
-  # Default: staging-ui_oauth_token
-  _AUTH_ID_STAGING: staging-weather-oauth-token
-  _PROD_PROJECT_ID: "dw-genai-pre-prod"
-  _CICD_RUNNER_PROJECT_ID: "dw-genai-dev"
-  _HOST_CONNECTION_NAME: "git-agent-solution-ops"
-  _STAGING_CONNECTION_NAME: "git-adk-mcp-oauth"
-  _REPOSITORY_NAME: "agent-solution-ops"
-  _REPOSITORY_OWNER: "wadave"
-  _GE_APP_STAGING: "ge-app-dev_1769811308679"
-  _GE_APP_PROD: "ge-app-dev_1769811308679"
+# All substitution values are injected by the Cloud Build trigger defined in
+# deployment/terraform/build_triggers.tf — no defaults are set here.
 
 logsBucket: gs://${PROJECT_ID}-agents-solution-ops-logs/build-logs
 options:

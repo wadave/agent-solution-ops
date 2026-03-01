@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# a. Create PR checks trigger (runs in cicd_runner_project_id = dw-genai-pre-prod)
+# a. Create PR checks trigger (runs in cicd_runner_project_id)
 resource "google_cloudbuild_trigger" "pr_checks" {
   name            = "pr-${var.project_name}"
   project         = var.cicd_runner_project_id
@@ -44,7 +44,7 @@ resource "google_cloudbuild_trigger" "pr_checks" {
   ]
 }
 
-# b. Create CD pipeline trigger (runs in staging_project_id = dw-genai-dev)
+# b. Create CD pipeline trigger (runs in staging_project_id)
 resource "google_cloudbuild_trigger" "cd_pipeline" {
   name            = "cd-${var.project_name}"
   project         = var.staging_project_id
@@ -71,10 +71,18 @@ resource "google_cloudbuild_trigger" "cd_pipeline" {
   include_build_logs = "INCLUDE_BUILD_LOGS_WITH_STATUS"
   substitutions = {
     _STAGING_PROJECT_ID          = var.staging_project_id
+    _PROD_PROJECT_ID             = var.prod_project_id
+    _CICD_RUNNER_PROJECT_ID      = var.cicd_runner_project_id
     _LOGS_BUCKET_NAME_STAGING    = resource.google_storage_bucket.logs_data_bucket[var.staging_project_id].name
     _APP_SERVICE_ACCOUNT_STAGING = google_service_account.app_sa["staging"].email
-    _AUTH_ID_STAGING             = "staging-weather-oauth-token"
+    _AUTH_ID_STAGING             = "staging-${local.auth_id}"
     _REGION                      = var.region
+    _HOST_CONNECTION_NAME        = var.host_connection_name
+    _STAGING_CONNECTION_NAME     = var.staging_connection_name
+    _REPOSITORY_NAME             = var.repository_name
+    _REPOSITORY_OWNER            = var.repository_owner
+    _GE_APP_STAGING              = var.ge_app_staging
+    _GE_APP_PROD                 = var.ge_app_prod
   }
   depends_on = [
     resource.google_project_service.cicd_services,
@@ -84,7 +92,7 @@ resource "google_cloudbuild_trigger" "cd_pipeline" {
   ]
 }
 
-# c. Create Deploy to production trigger (runs in cicd_runner_project_id = dw-genai-pre-prod)
+# c. Create Deploy to production trigger (runs in cicd_runner_project_id)
 resource "google_cloudbuild_trigger" "deploy_to_prod_pipeline" {
   name            = "deploy-${var.project_name}"
   project         = var.cicd_runner_project_id
@@ -103,11 +111,19 @@ resource "google_cloudbuild_trigger" "deploy_to_prod_pipeline" {
     approval_required = true
   }
   substitutions = {
-    _PROD_PROJECT_ID          = var.prod_project_id
-    _LOGS_BUCKET_NAME_PROD    = resource.google_storage_bucket.logs_data_bucket[var.prod_project_id].name
-    _APP_SERVICE_ACCOUNT_PROD = google_service_account.app_sa["prod"].email
-    _AUTH_ID_PROD             = "prod-weather-oauth-token"
-    _REGION                   = var.region
+    _PROD_PROJECT_ID             = var.prod_project_id
+    _STAGING_PROJECT_ID          = var.staging_project_id
+    _CICD_RUNNER_PROJECT_ID      = var.cicd_runner_project_id
+    _LOGS_BUCKET_NAME_PROD       = resource.google_storage_bucket.logs_data_bucket[var.prod_project_id].name
+    _APP_SERVICE_ACCOUNT_PROD    = google_service_account.app_sa["prod"].email
+    _AUTH_ID_PROD                = "prod-${local.auth_id}"
+    _REGION                      = var.region
+    _HOST_CONNECTION_NAME        = var.host_connection_name
+    _STAGING_CONNECTION_NAME     = var.staging_connection_name
+    _REPOSITORY_NAME             = var.repository_name
+    _REPOSITORY_OWNER            = var.repository_owner
+    _GE_APP_STAGING              = var.ge_app_staging
+    _GE_APP_PROD                 = var.ge_app_prod
   }
   depends_on = [
     resource.google_project_service.cicd_services,
