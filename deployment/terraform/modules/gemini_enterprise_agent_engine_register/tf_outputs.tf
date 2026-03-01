@@ -68,13 +68,21 @@ resource "null_resource" "register_or_update_agent_engine_to_gemini_enterprise" 
 
 # Deregister Agent Engine to Gemini Enterprise
 resource "null_resource" "deregister_agent_engine_from_gemini_enterprise" {
-  depends_on = [
-    local_file.out_deregister_agent_engine_from_gemini_enterprise
-  ]
+  triggers = {
+    deregister_script = local.deregister_agent_engine_from_gemini_enterprise_tpl
+  }
 
   provisioner "local-exec" {
-    when        = destroy
-    command     = "./${path.module}/build/_deregister_agent_engine_from_gemini_enterprise_tpl.sh"
+    when = destroy
+    # We must write the script to a file dynamically because local_file resources are not guaranteed to exist during destroy
+    command     = <<EOT
+      mkdir -p ${path.module}/build
+      cat << 'EOF' > ${path.module}/build/_deregister_agent_engine_from_gemini_enterprise_tpl.sh
+      ${self.triggers.deregister_script}
+      EOF
+      chmod +x ${path.module}/build/_deregister_agent_engine_from_gemini_enterprise_tpl.sh
+      ./${path.module}/build/_deregister_agent_engine_from_gemini_enterprise_tpl.sh
+    EOT
     interpreter = ["/bin/bash", "-c"]
   }
 }
