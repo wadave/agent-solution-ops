@@ -388,7 +388,9 @@ Edit the `substitutions` block at the bottom of `.cloudbuild/staging.yaml` and `
 
 The `AUTH_ID` values must match the `${each.key}-${local.auth_id}` pattern in `deployment/terraform/gemini_enterprise.tf`. For this project `local.auth_id = "weather-oauth-token"`, giving `staging-weather-oauth-token` and `prod-weather-oauth-token`. Use a project-specific suffix to avoid conflicts with other agents registered to the same GE app.
 
-The service account emails follow the pattern `{project_name}-app@{project_id}.iam.gserviceaccount.com`. You can fill them in after the first `terraform apply` creates the accounts, or pre-compute them if you know the values.
+The service account emails follow the pattern `{project_name}-app@{project_id}.iam.gserviceaccount.com`. 
+
+> **Note:** You can skip manual configuration here. When you run `terraform apply` in Step 5, Terraform will automatically configure these substitutions in the created Cloud Build triggers.
 
 #### Step 5 — Bootstrap Terraform
 
@@ -410,21 +412,7 @@ This creates all supporting infrastructure: service accounts, IAM bindings, Clou
 
 > **Note:** The Agent Engine itself is not created here. It is created on the first successful Cloud Build run by `deploy_agents.py`.
 
-#### Step 6 — Update Cloud Build substitutions with created service account emails
-
-After Step 5, retrieve the service account emails Terraform created and update the substitutions in the Cloud Build YAML files:
-
-```bash
-# Staging
-gcloud iam service-accounts list --project=dw-genai-dev --filter="displayName:Agent Service Account"
-
-# Prod
-gcloud iam service-accounts list --project=dw-genai-pre-prod --filter="displayName:Agent Service Account"
-```
-
-Update `_APP_SERVICE_ACCOUNT_STAGING` and `_APP_SERVICE_ACCOUNT_PROD` in the Cloud Build YAML files accordingly.
-
-#### Step 7 — Push to trigger CI/CD
+#### Step 6 — Push to trigger CI/CD
 
 The pipelines are triggered by branch pushes:
 
