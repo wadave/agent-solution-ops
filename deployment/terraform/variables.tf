@@ -36,7 +36,6 @@ variable "cicd_runner_project_id" {
 variable "region" {
   type        = string
   description = "Google Cloud region for resource deployment."
-  default     = "us-central1"
 }
 
 variable "host_connection_name" {
@@ -135,25 +134,21 @@ variable "create_repository" {
 variable "feedback_logs_filter" {
   type        = string
   description = "Log Sink filter for capturing feedback data. Captures logs where the `log_type` field is `feedback`."
-  default     = "jsonPayload.log_type=\"feedback\" jsonPayload.service_name=\"agents-solution-ops\""
 }
 
 variable "mcp_image_tag" {
   type        = string
   description = "Docker image tag for the MCP Server deployed to Cloud Run"
-  default     = "latest"
 }
 
 variable "google_client_id" {
   type        = string
   description = "Google Client ID for GCP authentication in MCP server"
-  default     = ""
 }
 
 variable "google_client_secret" {
   type        = string
   description = "Google Client Secret for GCP authentication in MCP server"
-  default     = ""
   sensitive   = true
 }
 
@@ -170,11 +165,9 @@ variable "ge_app_prod" {
 variable "oauth_client_id_secret_name" {
   type        = string
   description = "Secret Manager secret name containing the OAuth client credentials JSON (web app format). Leave empty to skip Gemini Enterprise OAuth registration."
-  default     = "client_secret"
 }
 
 variable "agents_region" {
   type        = string
   description = "Gemini Enterprise region. Typically 'global' for Discovery Engine."
-  default     = "global"
 }
