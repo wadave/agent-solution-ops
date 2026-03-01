@@ -206,6 +206,8 @@ client_secrets.json
 GEMINI.md
 GEMINI.md
 
+.claude/
+
 # Dev / Scratch
 dev_notebooks/
 scratchsrc/adk_agent/app_utils/.requirements.txt
