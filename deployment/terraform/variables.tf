@@ -140,6 +140,7 @@ variable "feedback_logs_filter" {
 variable "mcp_image_tag" {
   type        = string
   description = "Docker image tag for the MCP Server deployed to Cloud Run"
+  default     = "latest"
 }
 
 variable "google_client_id" {
@@ -168,7 +169,7 @@ variable "ge_app_prod" {
 variable "oauth_client_id_secret_name" {
   type        = string
   description = "Secret Manager secret name containing the OAuth client credentials JSON (web app format). Leave empty to skip Gemini Enterprise OAuth registration."
-  default     = "client_secret"
+  default     = ""
 }
 
 variable "agents_region" {
