@@ -50,7 +50,7 @@ variable "app_sa_roles" {
     "roles/discoveryengine.editor",
     "roles/logging.logWriter",
     "roles/cloudtrace.agent",
-    "roles/storage.admin",
+    "roles/storage.objectAdmin",
     "roles/serviceusage.serviceUsageConsumer",
   ]
 }

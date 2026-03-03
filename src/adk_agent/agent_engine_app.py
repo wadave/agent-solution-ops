@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import logging
 import os
 from typing import Any
@@ -18,6 +19,7 @@ from typing import Any
 import vertexai
 from dotenv import load_dotenv
 from google.adk.artifacts import GcsArtifactService, InMemoryArtifactService
+from google.adk.sessions.vertex_ai_session_service import VertexAiSessionService
 from google.cloud import logging as google_cloud_logging
 from vertexai.agent_engines.templates.adk import AdkApp
 
@@ -25,7 +27,6 @@ from adk_agent.agent import app as adk_app
 from adk_agent.app_utils.telemetry import setup_telemetry
 from adk_agent.app_utils.typing import Feedback
 
-# Load environment variables from .env file at runtime
 load_dotenv()
 
 
@@ -62,4 +63,5 @@ agent_engine = AgentEngineApp(
         if logs_bucket_name
         else InMemoryArtifactService()
     ),
+    session_service_builder=lambda: VertexAiSessionService(),
 )

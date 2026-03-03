@@ -9,7 +9,7 @@ dev = [
 [project]
 name = "adk-mcp-oauth"
 version = "0.1.0"
-description = "Add your description here"
+description = "ADK agent with dual-mode OAuth authentication for secured MCP services on Google Cloud"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
@@ -21,11 +21,8 @@ dependencies = [
   "google-cloud-aiplatform>=1.138.0",
   "google-cloud-logging>=3.13.0",
   "google-genai>=1.43.0",
-  "pip>=25.2",
-  "pre-commit>=4.5.1",
   "pydantic>=2.12.5",
   "python-dotenv>=1.2.1",
-  "ruff>=0.15.2"
 ]
 
 [project.optional-dependencies]
@@ -42,3 +39,17 @@ where = ["src"]
 name = "pypi"
 url = "https://pypi.org/simple"
 default = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+# E501 (line-too-long) is handled by the formatter for code; long strings,
+# HTML templates and URLs inside literals cannot be auto-wrapped.
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

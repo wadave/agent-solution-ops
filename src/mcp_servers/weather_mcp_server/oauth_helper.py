@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Author: Dave Wang
 
 """OAuth2 helper for Google authentication."""
 
@@ -19,9 +18,8 @@ import json
 import logging
 import secrets
 import webbrowser
-from typing import Optional
-from urllib.parse import urlencode
 from pathlib import Path
+from urllib.parse import urlencode
 
 import httpx
 from pydantic import BaseModel
@@ -35,8 +33,8 @@ class OAuthToken(BaseModel):
     access_token: str
     token_type: str
     expires_in: int
-    refresh_token: Optional[str] = None
-    id_token: Optional[str] = None
+    refresh_token: str | None = None
+    id_token: str | None = None
     scope: str
 
 
@@ -52,7 +50,7 @@ class OAuthConfig(BaseModel):
     client_id: str
     client_secret: str
     redirect_uri: str = "http://localhost:8080/oauth/callback"
-    redirect_uri_prod: Optional[str] = (
+    redirect_uri_prod: str | None = (
         None  # For Agentspace: "https://vertexaisearch.cloud.google.com/oauth-redirect"
     )
     auth_uri: str = "https://accounts.google.com/o/oauth2/v2/auth"
@@ -66,7 +64,7 @@ class OAuthFlow:
 
     def __init__(self, config: OAuthConfig):
         self.config = config
-        self.state: Optional[str] = None
+        self.state: str | None = None
         self.token_file = Path.home() / ".weather_mcp_token.json"
         self.state_file = Path.home() / ".weather_mcp_state.json"
 
@@ -101,7 +99,7 @@ class OAuthFlow:
         return f"{self.config.auth_uri}?{urlencode(params)}"
 
     async def exchange_code_for_token(
-        self, code: str, state: Optional[str] = None
+        self, code: str, state: str | None = None
     ) -> OAuthToken:
         """Exchange authorization code for access token."""
         # Load the saved state from file
@@ -179,7 +177,7 @@ class OAuthFlow:
         except Exception as e:
             logger.error(f"Failed to save token: {e}")
 
-    def load_token(self) -> Optional[OAuthToken]:
+    def load_token(self) -> OAuthToken | None:
         """Load token from file."""
         try:
             if self.token_file.exists():
@@ -198,7 +196,7 @@ class OAuthFlow:
         except Exception as e:
             logger.error(f"Failed to clear token: {e}")
 
-    async def get_valid_token(self) -> Optional[OAuthToken]:
+    async def get_valid_token(self) -> OAuthToken | None:
         """Get a valid token, refreshing if necessary."""
         token = self.load_token()
 

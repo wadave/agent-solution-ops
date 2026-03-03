@@ -196,20 +196,18 @@ token.json
 client_secret.json
 client_secrets.json
 .secrets.baseline
-.pre-commit-config.yaml
 
 # Agent / AI Configuration
 .gemini/
-.agent/
-.gemini/
 .adk/
 GEMINI.md
-GEMINI.md
-
 .claude/
+.agent/
+
+# Generated requirements files (produced by uv export in CI/CD)
+src/adk_agent/app_utils/.requirements.txt
 
 # Dev / Scratch
 dev_notebooks/
-scratchsrc/adk_agent/app_utils/.requirements.txt
-templates/
 scratch/
+templates/

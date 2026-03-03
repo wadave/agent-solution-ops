@@ -1,0 +1,56 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Local development stack.
+# Usage:
+#   1. Copy .env.example to .env and fill in your values.
+#   2. docker compose up
+#   3. Open http://localhost:8000/dev-ui/ for the ADK web UI.
+#   4. Open http://localhost:8080/oauth/login to authenticate the MCP server.
+
+services:
+  mcp-server:
+    build:
+      context: ./src/mcp_servers/weather_mcp_server
+    ports:
+      - "8080:8080"
+    env_file: .env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  adk-agent:
+    image: python:3.12-slim
+    volumes:
+      - .:/app
+    working_dir: /app
+    # Installs uv on first start; uses the project's locked dependencies.
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        pip install uv --quiet &&
+        uv sync --locked --quiet &&
+        uv run adk web --port 8000 --host 0.0.0.0
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      # Override MCP_URL to reach the containerised MCP server by service name.
+      - MCP_URL=http://mcp-server:8080/mcp
+      - ENVIRONMENT=development
+    depends_on:
+      mcp-server:
+        condition: service_healthy

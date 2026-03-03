@@ -11,29 +11,28 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Author: Dave Wang
-
-import json
-from pathlib import Path
-from typing import Any, Optional, Literal
 
 import asyncio
+import json
+import time
+from pathlib import Path
+from typing import Any, Literal
+
 import click
-from pydantic import AnyHttpUrl
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from geopy.exc import GeocoderServiceError, GeocoderTimedOut
-from geopy.geocoders import Nominatim
 import httpx
 from fastmcp import FastMCP
+from geopy.exc import GeocoderServiceError, GeocoderTimedOut
+from geopy.geocoders import Nominatim
+from pydantic import AnyHttpUrl
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import JSONResponse, Response, StreamingResponse
 
 from oauth_helper import OAuthFlow, OAuthConfig
 
 # Root .env is 4 levels up: weather_mcp_server/ -> mcp_servers/ -> src/ -> project root
 _ROOT_ENV = Path(__file__).resolve().parent.parent.parent.parent / ".env"
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import JSONResponse
-from starlette.requests import Request
-import time
 
 
 class ServerSettings(BaseSettings):
@@ -53,9 +52,9 @@ class ServerSettings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8080
     # In a deployed Cloud Run environment, the server_url will be provided by the environment
-    server_url: Optional[AnyHttpUrl] = None
+    server_url: AnyHttpUrl | None = None
     mcp_scope: str = "user"
-    mcp_server_url: Optional[AnyHttpUrl] = None
+    mcp_server_url: AnyHttpUrl | None = None
 
 
 class OAuthSettings(BaseSettings):
@@ -73,7 +72,7 @@ class OAuthSettings(BaseSettings):
     use_production_redirect: bool = False  # Set via environment variable
 
 
-async def verify_google_token(token: str, client_id: str) -> Optional[dict[str, Any]]:
+async def verify_google_token(token: str, client_id: str) -> dict[str, Any] | None:
     """Verify Google ID token and return user info."""
     try:
         async with httpx.AsyncClient() as client:
@@ -152,22 +151,16 @@ class OAuthMiddleware(BaseHTTPMiddleware):
                 print(f"📤 Response status: {response.status_code} for {method} {path}")
                 return response
 
-            # For POST requests, check if we can peek at content without consuming stream
-            # Only do body inspection for POST requests
             if method == "POST":
-                # Try to read body to check method, but handle carefully
                 body = await request.body()
 
-                # Check if this is an initialize/ping/tools request
                 is_public_request = False
                 try:
-                    import json
-
                     body_json = json.loads(body) if body else {}
                     rpc_method = body_json.get("method", "")
 
-                    # Allow initialize, ping, notifications/initialized, and tools/list without authentication
-                    # This allows tool discovery before authentication
+                    # Allow initialize, ping, notifications/initialized, and tools/list
+                    # without authentication to enable tool discovery before login.
                     if rpc_method in [
                         "initialize",
                         "ping",
@@ -221,12 +214,10 @@ class OAuthMiddleware(BaseHTTPMiddleware):
                 user_info = await verify_google_token(token, self.client_id)
                 if not user_info:
                     print(f"⚠️ Invalid token for {path}")
+                    msg = "Invalid or expired token. Please login again at /oauth/login"
                     return JSONResponse(
                         status_code=401,
-                        content={
-                            "error": "invalid_token",
-                            "message": "Invalid or expired token. Please login again at /oauth/login",
-                        },
+                        content={"error": "invalid_token", "message": msg},
                     )
 
                 # Add user info to request state for use in handlers
@@ -240,9 +231,6 @@ class OAuthMiddleware(BaseHTTPMiddleware):
 
         # For MCP endpoints, print the response body to debug tool calls
         if path.startswith("/mcp") and method == "POST":
-            # Read the response body
-            from starlette.responses import StreamingResponse, Response
-
             if isinstance(response, StreamingResponse):
                 # For streaming responses, we can't easily read the body without consuming it
                 print(
@@ -254,16 +242,11 @@ class OAuthMiddleware(BaseHTTPMiddleware):
                 async for chunk in response.body_iterator:
                     body += chunk
 
-                # Try to parse as JSON and print nicely
                 try:
-                    import json
-
                     body_json = json.loads(body.decode())
                     print(f"   Response body: {json.dumps(body_json, indent=2)}")
-                except:
-                    print(
-                        f"   Response body (raw): {body.decode()[:500]}"
-                    )  # First 500 chars
+                except Exception:
+                    print(f"   Response body (raw): {body.decode()[:500]}")
 
                 # Reconstruct the response with the body we read
                 return Response(
@@ -279,7 +262,7 @@ class OAuthMiddleware(BaseHTTPMiddleware):
 class HttpClientHolder:
     """Holds the HTTP client instance for weather API requests."""
 
-    client: Optional[httpx.AsyncClient] = None
+    client: httpx.AsyncClient | None = None
 
 
 # Global client holder - accessible for testing
@@ -480,7 +463,7 @@ Scopes: {token.scope}</pre>
     GEOCODE_TIMEOUT = 10.0
     geolocator = Nominatim(user_agent="weather-agent")
 
-    async def get_weather_response(endpoint: str) -> Optional[dict[str, Any]]:
+    async def get_weather_response(endpoint: str) -> dict[str, Any] | None:
         """Make a request to the NWS API."""
         try:
             response = await client_holder.client.get(endpoint)

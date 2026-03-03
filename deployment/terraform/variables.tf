@@ -57,12 +57,11 @@ variable "app_sa_roles" {
   description = "List of roles to assign to the application service account"
   type        = list(string)
   default = [
-
     "roles/aiplatform.user",
     "roles/discoveryengine.editor",
     "roles/logging.logWriter",
     "roles/cloudtrace.agent",
-    "roles/storage.admin",
+    "roles/storage.objectAdmin",
     "roles/serviceusage.serviceUsageConsumer",
   ]
 }
@@ -71,15 +70,16 @@ variable "cicd_roles" {
   description = "List of roles to assign to the CICD runner service account in the CICD project"
   type        = list(string)
   default = [
-    "roles/storage.admin",
+    "roles/storage.objectAdmin",
     "roles/aiplatform.user",
-    "roles/discoveryengine.admin",
+    "roles/discoveryengine.editor",
     "roles/logging.logWriter",
     "roles/cloudtrace.agent",
     "roles/artifactregistry.writer",
     "roles/cloudbuild.builds.builder",
     "roles/serviceusage.serviceUsageAdmin",
     "roles/run.admin",
+    # Required for Terraform to manage IAM bindings on behalf of other resources.
     "roles/resourcemanager.projectIamAdmin",
     "roles/secretmanager.secretAccessor",
     "roles/secretmanager.viewer",
@@ -92,7 +92,7 @@ variable "cicd_sa_deployment_required_roles" {
   default = [
     "roles/iam.serviceAccountUser",
     "roles/aiplatform.user",
-    "roles/storage.admin",
+    "roles/storage.objectAdmin",
     "roles/serviceusage.serviceUsageAdmin",
     "roles/run.admin"
   ]
