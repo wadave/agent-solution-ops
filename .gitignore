@@ -211,3 +211,5 @@ GEMINI.md
 # Dev / Scratch
 dev_notebooks/
 scratchsrc/adk_agent/app_utils/.requirements.txt
+templates/
+scratch/
