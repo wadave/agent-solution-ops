@@ -50,7 +50,8 @@ The agent **automatically selects** the correct mode based on the `ENVIRONMENT` 
 ## Architecture & Components
 
 * **Gemini Enterprise Engine & UI**: Handles user interactions, intent recognition, and dynamic token-passing.
-* **ADK Agent**: The reasoning engine that decides when and how to invoke the Weather MCP server.
+* **VertexAISession Services**: Manages user context, conversation history, and state persistence natively within Google Cloud.
+* **ADK Agent**: The reasoning engine that decides when and how to invoke the Weather MCP server. It incorporates robust **Gemini model retry logic** to gracefully handle transient API errors, rate limits, and timeouts.
 * **Weather MCP Server (Cloud Run)**: A FastMCP-based microservice that exposes weather-fetching tools and handles API requests to the NWS.
 * **Identity Provider**: Manages OAuth 2.0 authentication for secure tool execution.
 * **Observability (Agent Engine)**: Cloud Logging, Monitoring, and Tracing are natively enabled for the Agent Engine, providing complete visibility into execution logs, latency metrics, and distributed traces.
@@ -70,7 +71,8 @@ graph TB
 
         subgraph "Gemini Enterprise"
             AS["Gemini Enterprise Engine"]
-            RE["Agent Engine<br/>ADK Agent"]
+            VS["VertexAISession Services"]
+            RE["Agent Engine<br/>ADK Agent (w/ Retry Logic)"]
         end
 
         subgraph "Cloud Run"
@@ -86,7 +88,8 @@ graph TB
         end
 
     UI -->|User Query| AS
-    AS -->|Invoke Agent| RE
+    AS -->|Manage Session| VS
+    VS -->|Invoke Agent| RE
     RE -->|MCP Tool Call| MCP
     MCP -->|Fetch Weather| NWS
 

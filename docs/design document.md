@@ -48,7 +48,8 @@
           GE_Engine[Gemini Enterprise Engine]
           MA[Model Armor Floor Settings]
           subgraph "Vertex AI"
-              Agent_Engine[Agent Engine / ADK Agent]
+              VS[VertexAISession Services]
+              Agent_Engine[Agent Engine / ADK Agent (Retry)]
           end
           subgraph "Cloud Run"
               Cloud_Run[Weather MCP Server]
@@ -62,7 +63,8 @@
       end
 
       GE_Engine -->|Inspect & Block| MA
-      MA -->|Invoke| Agent_Engine
+      MA -->|Manage State| VS
+      VS -->|Invoke| Agent_Engine
       Agent_Engine -->|Authenticated Tool Call| Cloud_Run
       Cloud_Run -->|API Request| NWS
       GE_Engine <-->|Token Exchange| Google_Auth
@@ -70,7 +72,8 @@
   ```
 
 - **Component Breakdown**:
-  - **ADK Agent**: Orchestrates tool calls, handles session context, and implements environment-aware authentication logic.
+  - **VertexAISession Services**: Manages session state, conversation history, and user context across multi-turn interactions.
+  - **ADK Agent**: Orchestrates tool calls, handles session context, and implements environment-aware authentication logic. Features **Gemini model retry logic** to handle API quotas, rate limiting, and transient network errors gracefully.
   - **Weather MCP Server**: FastMCP-based service providing specific tools (`get_forecast`, `get_alerts`) with built-in OAuth verification middleware.
   - **Deployment Layer**: Terraform (Infra) + Cloud Build (CI/CD) + `deploy_agents.py` (Agent Lifecycle).
 - **Technology Stack**:
@@ -88,11 +91,17 @@
 
 ## 4. Detailed Design
 
+### VertexAISession Services
+
+- **Responsibilities**: Manages persistent conversation history and user session state natively on Google Cloud.
+- **Interfaces/APIs**: Provides state retrieval and storage for the ADK Agent across interactions.
+
 ### ADK Agent (`adk_agent`)
 
-- **Responsibilities**: Reasoning, intent interpretation, and secure tool invocation.
+- **Responsibilities**: Reasoning, intent interpretation, secure tool invocation, and error handling.
+- **Capabilities**: Features **Gemini model retry logic** using exponential backoff or similar policies to handle transient Google Cloud API failures or rate limits (429/503 errors).
 - **Interfaces/APIs**:
-  - **Input**: Natural language query + Session context from GE.
+  - **Input**: Natural language query + Session context from GE (via VertexAISession).
   - **Output**: Natural language response + Optional tool call results.
 - **Authentication Logic**:
   - Implements `mcp_header_provider` to dynamically inject tokens.
@@ -235,6 +244,7 @@ Terraform is the primary tool for defining and enforcing the project's resilienc
 - **Multi-Region Failover**: In a production environment, Terraform can define regional replicas of the **Weather MCP Server** (Cloud Run) and **Vertex AI Agent Engine**. A **Global Cloud Load Balancer** with a single anycast IP can then provide automated failover between regions.
 - **Environment Parity**: Terraform ensures that the `staging` and `production` environments are identical except for scale and data, enabling high-fidelity resilience testing in staging before production deployment.
 - **Resource Recovery**: By using `prevent_destroy` flags and automated backup configurations (e.g., for Cloud Storage and Secret Manager), Terraform minimizes the risk of accidental data loss.
+- **Gemini Model Retry Logic**: The ADK Agent is configured with robust retry policies to ensure high availability and gracefully degrade or recover from transient Vertex AI API errors or rate limiting.
 
 ### 13.2 Failure Testing Strategies
 
