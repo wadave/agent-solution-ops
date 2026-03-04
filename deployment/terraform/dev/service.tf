@@ -38,7 +38,7 @@ resource "google_cloud_run_v2_service" "mcp_server" {
 
   template {
     containers {
-      image = "${var.region}-docker.pkg.dev/${var.dev_project_id}/mcp-server-repo/weather-mcp-server:${var.mcp_image_tag}"
+      image = "us-docker.pkg.dev/cloudrun/container/hello"
 
       env {
         name  = "GOOGLE_CLIENT_ID"
@@ -50,6 +50,12 @@ resource "google_cloud_run_v2_service" "mcp_server" {
       }
     }
     service_account = google_service_account.app_sa.email
+  }
+
+  lifecycle {
+    ignore_changes = [
+      template[0].containers[0].image
+    ]
   }
 
   depends_on = [
@@ -82,16 +88,6 @@ resource "google_vertex_ai_reasoning_engine" "app" {
         name  = "LOGS_BUCKET_NAME"
         value = google_storage_bucket.logs_data_bucket.name
       }
-
-      env {
-        name  = "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT"
-        value = "true"
-      }
-
-      env {
-        name  = "GOOGLE_CLOUD_AGENT_ENGINE_ENABLE_TELEMETRY"
-        value = "true"
-      }
     }
 
     source_code_spec {
@@ -102,7 +98,7 @@ resource "google_vertex_ai_reasoning_engine" "app" {
       python_spec {
         entrypoint_module  = "adk_agent.agent_engine_app"
         entrypoint_object  = "agent_engine"
-        requirements_file  = "adk_agent/app_utils/.requirements.txt"
+        requirements_file  = "adk_agent/requirements.txt"
         version            = "3.12"
       }
     }
@@ -113,6 +109,8 @@ resource "google_vertex_ai_reasoning_engine" "app" {
   lifecycle {
     ignore_changes = [
       spec[0].source_code_spec,
+      spec[0].deployment_spec,
+      display_name
     ]
   }
 

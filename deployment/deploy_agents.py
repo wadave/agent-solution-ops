@@ -28,7 +28,8 @@ Environment variables:
                             (default: {PROJECT_ID}-agents-solution-ops-logs).
     DISPLAY_NAME_SUFFIX:    Human-readable env suffix, e.g. "Staging" or "Prod".
     BUCKET_NAME:            GCS staging bucket for source upload (default: {PROJECT_ID}-bucket).
-    REQUIREMENTS_FILE:      Path to requirements.txt (default: src/adk_agent/app_utils/.requirements.txt).
+    REQUIREMENTS_FILE:      Path to requirements.txt generated from pyproject.toml
+                            (default: /workspace/requirements.txt).
     HOSTING_AGENT_ID_FILE:  File path to write the deployed resource name for CI/CD
                             handoff (default: /workspace/hosting_agent_id.txt).
 """
@@ -113,7 +114,7 @@ def main():
     #   google_storage_bucket.logs_data_bucket = "{project_id}-{project_name}-logs"
     logs_bucket_name = os.environ.get("LOGS_BUCKET_NAME", f"{project_id}-agents-solution-ops-logs")
     requirements_file = os.environ.get(
-        "REQUIREMENTS_FILE", "src/adk_agent/app_utils/.requirements.txt"
+        "REQUIREMENTS_FILE", "/workspace/requirements.txt"
     )
 
     if not project_id or not service_account:

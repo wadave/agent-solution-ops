@@ -55,11 +55,7 @@ variable "app_sa_roles" {
   ]
 }
 
-variable "mcp_image_tag" {
-  type        = string
-  description = "Docker image tag for the MCP Server deployed to Cloud Run"
-  default     = "latest"
-}
+
 
 variable "google_client_id" {
   type        = string

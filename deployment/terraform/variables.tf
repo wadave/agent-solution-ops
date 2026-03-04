@@ -137,11 +137,7 @@ variable "feedback_logs_filter" {
   default     = "jsonPayload.log_type=\"feedback\" jsonPayload.service_name=\"agents-solution-ops\""
 }
 
-variable "mcp_image_tag" {
-  type        = string
-  description = "Docker image tag for the MCP Server deployed to Cloud Run"
-  default     = "latest"
-}
+
 
 variable "google_client_id" {
   type        = string

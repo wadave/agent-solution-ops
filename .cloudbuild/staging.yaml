@@ -51,11 +51,11 @@ steps:
         cd deployment/terraform
         terraform init
         terraform apply -auto-approve -refresh=false \
-          -var=mcp_image_tag=${COMMIT_SHA} \
           -target='google_project_iam_member.staging_cicd_project_roles' \
           -target='google_artifact_registry_repository.mcp_repo["staging"]' \
           -target='google_cloud_run_v2_service.mcp_server["staging"]' \
-          -target='google_cloud_run_v2_service_iam_binding.mcp_server_public_access["staging"]'
+          -target='google_cloud_run_v2_service_iam_binding.mcp_server_public_access["staging"]' \
+          -target='google_vertex_ai_reasoning_engine.app["staging"]'
     env:
       - 'TF_VAR_region=${_REGION}'
       - 'TF_VAR_prod_project_id=${_PROD_PROJECT_ID}'
@@ -68,6 +68,18 @@ steps:
       - 'TF_VAR_ge_app_staging=${_GE_APP_STAGING}'
       - 'TF_VAR_ge_app_prod=${_GE_APP_PROD}'
       - 'TF_VAR_oauth_client_id_secret_name=${_OAUTH_CLIENT_ID_SECRET_NAME}'
+
+  - name: 'gcr.io/google.com/cloudsdktool/google-cloud-cli:alpine'
+    id: deploy-mcp-server
+    entrypoint: bash
+    args:
+      - '-c'
+      - |
+        gcloud run deploy weather-mcp-server-oauth-staging \
+          --image=${_REGION}-docker.pkg.dev/${_STAGING_PROJECT_ID}/mcp-server-repo/weather-mcp-server:${COMMIT_SHA} \
+          --region=${_REGION} \
+          --project=${_STAGING_PROJECT_ID}
+    waitFor: ['terraform-apply', 'push-mcp-server']
 
   # Read the Cloud Run MCP URL from Terraform output (avoids a separate gcloud call).
   - name: 'gcr.io/google.com/cloudsdktool/google-cloud-cli:alpine'
@@ -107,7 +119,7 @@ steps:
       - "-c"
       - |
         export MCP_URL=$(cat /workspace/mcp_url.txt)
-        uv export --no-hashes --no-sources --no-header --no-dev --no-emit-project --no-annotate --locked > src/adk_agent/app_utils/.requirements.txt
+        uv export --no-hashes --no-sources --no-header --no-dev --no-emit-project --no-annotate --locked > /workspace/requirements.txt
         uv run python deployment/deploy_agents.py
     env:
       - 'PATH=/usr/local/bin:/usr/bin:~/.local/bin'
@@ -117,7 +129,7 @@ steps:
       - 'APP_SERVICE_ACCOUNT=${_APP_SERVICE_ACCOUNT_STAGING}'
       - 'AUTH_ID=${_AUTH_ID_STAGING}'
       - 'DISPLAY_NAME_SUFFIX=Staging'
-      - 'REQUIREMENTS_FILE=src/adk_agent/app_utils/.requirements.txt'
+      - 'REQUIREMENTS_FILE=/workspace/requirements.txt'
       - 'BUCKET_NAME=${_STAGING_PROJECT_ID}-bucket'
       - 'GEMINI_MODEL=${_GEMINI_MODEL}'
       - 'RETRY_ATTEMPTS=${_RETRY_ATTEMPTS}'
@@ -145,7 +157,6 @@ steps:
           -target='module.gemini_enterprise_oauth["staging"]' \
           -target='module.gemini_enterprise_agent_engine_register["staging"]'
     env:
-      - 'TF_VAR_mcp_image_tag=${COMMIT_SHA}'
       - 'TF_VAR_region=${_REGION}'
       - 'TF_VAR_prod_project_id=${_PROD_PROJECT_ID}'
       - 'TF_VAR_staging_project_id=${_STAGING_PROJECT_ID}'
