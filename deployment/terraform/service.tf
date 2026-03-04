@@ -102,10 +102,9 @@ resource "google_vertex_ai_reasoning_engine" "app" {
       }
 
       python_spec {
-        entrypoint_module  = "adk_agent.agent_engine_app"
-        entrypoint_object  = "agent_engine"
-        requirements_file  = "adk_agent/requirements.txt"
-        version            = "3.12"
+        entrypoint_module = "app.agent_engine_app"
+        entrypoint_object = "agent_engine"
+        version           = "3.12"
       }
     }
   }
