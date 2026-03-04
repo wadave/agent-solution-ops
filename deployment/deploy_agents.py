@@ -105,9 +105,9 @@ def main():
     service_account = os.environ.get("APP_SERVICE_ACCOUNT")
     mcp_url = os.environ.get("MCP_URL", "")
     auth_id = os.environ.get("AUTH_ID", "")
-    gemini_model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
-    retry_attempts = os.environ.get("RETRY_ATTEMPTS", "3")
-    mcp_timeout = os.environ.get("MCP_TIMEOUT", "60")
+    gemini_model = os.environ.get("GEMINI_MODEL") or "gemini-2.5-flash"
+    retry_attempts = os.environ.get("RETRY_ATTEMPTS") or "3"
+    mcp_timeout = os.environ.get("MCP_TIMEOUT") or "60"
     display_name_suffix = os.environ.get("DISPLAY_NAME_SUFFIX", "Staging")
     # Bucket name follows the pattern set in deployment/terraform/storage.tf:
     #   google_storage_bucket.logs_data_bucket = "{project_id}-{project_name}-logs"
