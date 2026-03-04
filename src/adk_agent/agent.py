@@ -39,8 +39,8 @@ MIN_TOKEN_LENGTH = 20
 mcp_url = os.getenv("MCP_URL", "http://127.0.0.1:5000")
 AGENTSPACE_AUTH_ID = os.getenv("AUTH_ID")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-RETRY_ATTEMPTS = int(os.getenv("RETRY_ATTEMPTS", "3"))
-MCP_TIMEOUT = int(os.getenv("MCP_TIMEOUT", "60"))
+RETRY_ATTEMPTS = int(os.getenv("RETRY_ATTEMPTS") or "3")
+MCP_TIMEOUT = int(os.getenv("MCP_TIMEOUT") or "60")
 
 # Environment detection
 ENVIRONMENT = os.getenv("ENVIRONMENT", "deployment").lower()
