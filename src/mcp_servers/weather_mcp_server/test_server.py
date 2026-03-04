@@ -20,6 +20,7 @@ import sys
 
 from fastmcp import Client
 from fastmcp.client.transports import StreamableHttpTransport
+
 from oauth_helper import create_oauth_flow_from_env
 
 

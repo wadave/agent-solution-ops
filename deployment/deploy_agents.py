@@ -105,20 +105,19 @@ def main():
     service_account = os.environ.get("APP_SERVICE_ACCOUNT")
     mcp_url = os.environ.get("MCP_URL", "")
     auth_id = os.environ.get("AUTH_ID", "")
+    gemini_model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+    retry_attempts = os.environ.get("RETRY_ATTEMPTS", "3")
+    mcp_timeout = os.environ.get("MCP_TIMEOUT", "60")
     display_name_suffix = os.environ.get("DISPLAY_NAME_SUFFIX", "Staging")
     # Bucket name follows the pattern set in deployment/terraform/storage.tf:
     #   google_storage_bucket.logs_data_bucket = "{project_id}-{project_name}-logs"
-    logs_bucket_name = os.environ.get(
-        "LOGS_BUCKET_NAME", f"{project_id}-agents-solution-ops-logs"
-    )
+    logs_bucket_name = os.environ.get("LOGS_BUCKET_NAME", f"{project_id}-agents-solution-ops-logs")
     requirements_file = os.environ.get(
         "REQUIREMENTS_FILE", "src/adk_agent/app_utils/.requirements.txt"
     )
 
     if not project_id or not service_account:
-        logger.error(
-            "Missing required environment variables: PROJECT_ID, APP_SERVICE_ACCOUNT"
-        )
+        logger.error("Missing required environment variables: PROJECT_ID, APP_SERVICE_ACCOUNT")
         sys.exit(1)
 
     if not auth_id:
@@ -135,6 +134,9 @@ def main():
     os.environ["AUTH_ID"] = auth_id
     if mcp_url:
         os.environ["MCP_URL"] = mcp_url
+    os.environ["GEMINI_MODEL"] = gemini_model
+    os.environ["RETRY_ATTEMPTS"] = retry_attempts
+    os.environ["MCP_TIMEOUT"] = mcp_timeout
 
     # Ensure the src/ layout is importable when running from the repo root.
     sys.path.insert(0, "src")
@@ -153,6 +155,9 @@ def main():
         # Agent Engine and injected by the platform — do not set them here.
         "AUTH_ID": auth_id,
         "LOGS_BUCKET_NAME": logs_bucket_name,
+        "GEMINI_MODEL": gemini_model,
+        "RETRY_ATTEMPTS": retry_attempts,
+        "MCP_TIMEOUT": mcp_timeout,
     }
     if mcp_url:
         env_vars["MCP_URL"] = mcp_url
@@ -217,9 +222,7 @@ def main():
                         "to migrate to the current SDK. GE registration will be "
                         "refreshed by Terraform on the next run."
                     )
-                    client.agent_engines.delete(
-                        name=existing_agents[display_name], force=True
-                    )
+                    client.agent_engines.delete(name=existing_agents[display_name], force=True)
                     remote_agent = client.agent_engines.create(config=config)
                 else:
                     raise
@@ -232,18 +235,14 @@ def main():
                 # when a previous create attempt left a resource in FAILED state.
                 # When this happens, parse the resource name from the error and
                 # update() it instead to force a fresh redeployment.
-                match = re.search(
-                    r"(projects/[^/]+/locations/[^/]+/reasoningEngines/\d+)", str(e)
-                )
+                match = re.search(r"(projects/[^/]+/locations/[^/]+/reasoningEngines/\d+)", str(e))
                 if "failed to start" in str(e) and match:
                     stale_name = match.group(1)
                     logger.warning(
                         f"create() returned a stale failed resource ({stale_name}). "
                         "Falling back to update() to trigger a fresh redeployment."
                     )
-                    remote_agent = client.agent_engines.update(
-                        name=stale_name, config=config
-                    )
+                    remote_agent = client.agent_engines.update(name=stale_name, config=config)
                 else:
                     raise
 
@@ -261,9 +260,7 @@ def main():
             f.write(agent_resource_name)
         logger.info(f"Wrote agent resource name to {hosting_agent_id_path}")
     except OSError:
-        logger.warning(
-            f"Could not write agent resource name to {hosting_agent_id_path}"
-        )
+        logger.warning(f"Could not write agent resource name to {hosting_agent_id_path}")
 
     # Update deployment_metadata.json for the load test, which reads
     # remote_agent_engine_id and parses it as a full resource path.

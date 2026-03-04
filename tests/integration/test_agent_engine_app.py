@@ -51,11 +51,7 @@ async def test_agent_stream_query(mock_get_tools, agent_app: AgentEngineApp) -> 
     for event in events:
         validated_event = Event.model_validate(event)
         content = validated_event.content
-        if (
-            content is not None
-            and content.parts
-            and any(part.text for part in content.parts)
-        ):
+        if content is not None and content.parts and any(part.text for part in content.parts):
             has_text_content = True
             break
 

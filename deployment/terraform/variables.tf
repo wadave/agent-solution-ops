@@ -177,3 +177,21 @@ variable "agents_region" {
   description = "Gemini Enterprise region. Typically 'global' for Discovery Engine."
   default     = "global"
 }
+
+variable "gemini_model" {
+  type        = string
+  description = "The Gemini model to use for the ADK agent."
+  default     = "gemini-2.5-flash"
+}
+
+variable "retry_attempts" {
+  type        = string
+  description = "Number of retry attempts for the ADK agent."
+  default     = "3"
+}
+
+variable "mcp_timeout" {
+  type        = string
+  description = "Timeout in seconds for MCP server calls."
+  default     = "60"
+}

@@ -21,6 +21,7 @@ import sys
 import webbrowser
 
 import click
+
 from oauth_helper import create_oauth_flow_from_env
 
 logging.basicConfig(level=logging.INFO)

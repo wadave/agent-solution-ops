@@ -38,6 +38,9 @@ MIN_TOKEN_LENGTH = 20
 # Configuration
 mcp_url = os.getenv("MCP_URL", "http://127.0.0.1:5000")
 AGENTSPACE_AUTH_ID = os.getenv("AUTH_ID")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+RETRY_ATTEMPTS = int(os.getenv("RETRY_ATTEMPTS", "3"))
+MCP_TIMEOUT = int(os.getenv("MCP_TIMEOUT", "60"))
 
 # Environment detection
 ENVIRONMENT = os.getenv("ENVIRONMENT", "deployment").lower()
@@ -71,9 +74,7 @@ def get_access_token(readonly_context: ReadonlyContext, auth_id: str) -> str | N
     """Retrieves the OAuth access token from the ReadonlyContext state provided by Agentspace."""
 
     # Method 1: Try session.state (most common location in Agentspace)
-    if hasattr(readonly_context, "session") and hasattr(
-        readonly_context.session, "state"
-    ):
+    if hasattr(readonly_context, "session") and hasattr(readonly_context.session, "state"):
         try:
             session_state = dict(readonly_context.session.state)
 
@@ -138,11 +139,7 @@ def mcp_header_provider(readonly_context: ReadonlyContext) -> dict[str, str]:
             logger.warning("No access token found — MCP request will have no Authorization header")
             return {}
 
-        masked = (
-            f"{access_token[:10]}...{access_token[-10:]}"
-            if len(access_token) > 25
-            else "***"
-        )
+        masked = f"{access_token[:10]}...{access_token[-10:]}" if len(access_token) > 25 else "***"
         logger.debug("Injecting Authorization header with token: %s", masked)
         return {"Authorization": f"Bearer {access_token}"}
     except Exception:
@@ -150,9 +147,7 @@ def mcp_header_provider(readonly_context: ReadonlyContext) -> dict[str, str]:
         return {}
 
 
-logger.info(
-    "Environment: %s | AUTH_ID: %s | MCP URL: %s", ENVIRONMENT, AGENTSPACE_AUTH_ID, mcp_url
-)
+logger.info("Environment: %s | AUTH_ID: %s | MCP URL: %s", ENVIRONMENT, AGENTSPACE_AUTH_ID, mcp_url)
 
 if IS_DEVELOPMENT:
     logger.info("Development mode: OAuth2 authentication with client credentials")
@@ -178,7 +173,7 @@ if IS_DEVELOPMENT:
         ),
     )
     mcp_toolset = McpToolset(
-        connection_params=StreamableHTTPConnectionParams(url=mcp_url, timeout=60),
+        connection_params=StreamableHTTPConnectionParams(url=mcp_url, timeout=MCP_TIMEOUT),
         auth_scheme=auth_scheme,
         auth_credential=auth_credential,
         errlog=None,
@@ -187,7 +182,7 @@ else:
     logger.info("Production mode: header_provider only (token from AgentSpace session.state)")
     try:
         mcp_toolset = McpToolset(
-            connection_params=StreamableHTTPConnectionParams(url=mcp_url, timeout=60),
+            connection_params=StreamableHTTPConnectionParams(url=mcp_url, timeout=MCP_TIMEOUT),
             header_provider=mcp_header_provider,
             errlog=None,
         )
@@ -198,8 +193,8 @@ else:
 
 root_agent = LlmAgent(
     model=Gemini(
-        model="gemini-2.5-flash",
-        retry_options=types.HttpRetryOptions(attempts=3),
+        model=GEMINI_MODEL,
+        retry_options=types.HttpRetryOptions(attempts=RETRY_ATTEMPTS),
     ),
     name="root_agent",
     description="weather agent that tells weather forecast",

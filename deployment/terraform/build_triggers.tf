@@ -84,6 +84,9 @@ resource "google_cloudbuild_trigger" "cd_pipeline" {
     _GE_APP_STAGING              = var.ge_app_staging
     _GE_APP_PROD                 = var.ge_app_prod
     _OAUTH_CLIENT_ID_SECRET_NAME = var.oauth_client_id_secret_name
+    _GEMINI_MODEL                = var.gemini_model
+    _RETRY_ATTEMPTS              = var.retry_attempts
+    _MCP_TIMEOUT                 = var.mcp_timeout
   }
   depends_on = [
     resource.google_project_service.cicd_services,
@@ -126,6 +129,9 @@ resource "google_cloudbuild_trigger" "deploy_to_prod_pipeline" {
     _GE_APP_STAGING              = var.ge_app_staging
     _GE_APP_PROD                 = var.ge_app_prod
     _OAUTH_CLIENT_ID_SECRET_NAME = var.oauth_client_id_secret_name
+    _GEMINI_MODEL                = var.gemini_model
+    _RETRY_ATTEMPTS              = var.retry_attempts
+    _MCP_TIMEOUT                 = var.mcp_timeout
   }
   depends_on = [
     resource.google_project_service.cicd_services,

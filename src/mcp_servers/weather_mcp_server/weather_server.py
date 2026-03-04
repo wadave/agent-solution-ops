@@ -29,7 +29,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
 
-from oauth_helper import OAuthFlow, OAuthConfig
+from oauth_helper import OAuthConfig, OAuthFlow
 
 # Root .env is 4 levels up: weather_mcp_server/ -> mcp_servers/ -> src/ -> project root
 _ROOT_ENV = Path(__file__).resolve().parent.parent.parent.parent / ".env"
@@ -89,10 +89,7 @@ async def verify_google_token(token: str, client_id: str) -> dict[str, Any] | No
             token_info = response.json()
 
             # Verify the token is for our client
-            if (
-                token_info.get("aud") != client_id
-                and token_info.get("azp") != client_id
-            ):
+            if token_info.get("aud") != client_id and token_info.get("azp") != client_id:
                 print("⚠️ Token client ID mismatch")
                 return None
 
@@ -144,9 +141,7 @@ class OAuthMiddleware(BaseHTTPMiddleware):
             # For GET requests (SSE/streaming), skip body inspection
             # GET requests for SSE should also be allowed for MCP protocol
             if method == "GET":
-                print(
-                    "✅ OAuth Middleware: GET request to MCP endpoint, allowing for SSE"
-                )
+                print("✅ OAuth Middleware: GET request to MCP endpoint, allowing for SSE")
                 response = await call_next(request)
                 print(f"📤 Response status: {response.status_code} for {method} {path}")
                 return response
@@ -167,9 +162,7 @@ class OAuthMiddleware(BaseHTTPMiddleware):
                         "notifications/initialized",
                         "tools/list",
                     ]:
-                        print(
-                            f"✅ OAuth Middleware: Allowing {rpc_method} request without auth"
-                        )
+                        print(f"✅ OAuth Middleware: Allowing {rpc_method} request without auth")
                         is_public_request = True
                 except Exception:
                     pass
@@ -180,9 +173,7 @@ class OAuthMiddleware(BaseHTTPMiddleware):
                 # If it's a public request (init/tools/list), allow without auth
                 if is_public_request:
                     response = await call_next(request)
-                    print(
-                        f"📤 Response status: {response.status_code} for {rpc_method}"
-                    )
+                    print(f"📤 Response status: {response.status_code} for {rpc_method}")
                     return response
 
                 # Otherwise, check authentication
@@ -233,9 +224,7 @@ class OAuthMiddleware(BaseHTTPMiddleware):
         if path.startswith("/mcp") and method == "POST":
             if isinstance(response, StreamingResponse):
                 # For streaming responses, we can't easily read the body without consuming it
-                print(
-                    "   Response type: StreamingResponse (body not printed to avoid consumption)"
-                )
+                print("   Response type: StreamingResponse (body not printed to avoid consumption)")
             else:
                 # For regular responses, read and print the body
                 body = b""
@@ -506,9 +495,7 @@ Scopes: {token.scope}</pre>
     async def get_alerts(state: str) -> str:
         """Get active weather alerts for a specific US state."""
         if not isinstance(state, str) or len(state) != 2 or not state.isalpha():
-            return (
-                "Invalid input. Please provide a two-letter US state code (e.g., CA)."
-            )
+            return "Invalid input. Please provide a two-letter US state code (e.g., CA)."
         state_code = state.upper()
         endpoint = f"/alerts/active/area/{state_code}"
         data = await get_weather_response(endpoint)
@@ -527,7 +514,9 @@ Scopes: {token.scope}</pre>
         point_endpoint = f"/points/{latitude:.4f},{longitude:.4f}"
         points_data = await get_weather_response(point_endpoint)
         if points_data is None or "properties" not in points_data:
-            return f"Unable to retrieve NWS gridpoint information for {latitude:.4f},{longitude:.4f}."
+            return (
+                f"Unable to retrieve NWS gridpoint information for {latitude:.4f},{longitude:.4f}."
+            )
         forecast_url = points_data["properties"].get("forecast")
         if not forecast_url:
             return f"Could not find the NWS forecast endpoint for {latitude:.4f},{longitude:.4f}."
@@ -556,18 +545,11 @@ Scopes: {token.scope}</pre>
         """Get the weather forecast for a specific US city and state."""
         if not city or not isinstance(city, str):
             return "Invalid city name provided."
-        if (
-            not state
-            or not isinstance(state, str)
-            or len(state) != 2
-            or not state.isalpha()
-        ):
+        if not state or not isinstance(state, str) or len(state) != 2 or not state.isalpha():
             return "Invalid state code."
         query = f"{city.strip()}, {state.strip().upper()}, USA"
         try:
-            location = await asyncio.to_thread(
-                geolocator.geocode, query, timeout=GEOCODE_TIMEOUT
-            )
+            location = await asyncio.to_thread(geolocator.geocode, query, timeout=GEOCODE_TIMEOUT)
         except (GeocoderTimedOut, GeocoderServiceError):
             return f"Could not get coordinates for '{query}'."
         if location is None:
@@ -593,18 +575,14 @@ def main(port: int, transport: Literal["sse", "streamable-http"]) -> int:
 
     try:
         mcp_server, oauth_flow, client_id = create_mcp_server(settings, oauth_settings)
-        print(
-            f"🚀 MCP Server with Google Auth running on http://{settings.host}:{settings.port}"
-        )
+        print(f"🚀 MCP Server with Google Auth running on http://{settings.host}:{settings.port}")
         print(f"   OAuth Login: http://{settings.host}:{settings.port}/oauth/login")
         print(f"   MCP Endpoint: http://{settings.host}:{settings.port}/mcp")
 
         # Pass OAuth middleware through transport_kwargs
         from starlette.middleware import Middleware
 
-        middleware = [
-            Middleware(OAuthMiddleware, oauth_flow=oauth_flow, client_id=client_id)
-        ]
+        middleware = [Middleware(OAuthMiddleware, oauth_flow=oauth_flow, client_id=client_id)]
         print("✅ OAuth middleware configured to protect /mcp endpoint")
 
         mcp_server.run(transport=transport, middleware=middleware)

@@ -21,10 +21,10 @@ import logging
 import httpx
 
 from weather_server import (
-    create_mcp_server,
-    ServerSettings,
     OAuthSettings,
+    ServerSettings,
     _client_holder,
+    create_mcp_server,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")

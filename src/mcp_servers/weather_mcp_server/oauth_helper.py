@@ -98,9 +98,7 @@ class OAuthFlow:
 
         return f"{self.config.auth_uri}?{urlencode(params)}"
 
-    async def exchange_code_for_token(
-        self, code: str, state: str | None = None
-    ) -> OAuthToken:
+    async def exchange_code_for_token(self, code: str, state: str | None = None) -> OAuthToken:
         """Exchange authorization code for access token."""
         # Load the saved state from file
         saved_state = None
@@ -235,6 +233,7 @@ def create_oauth_flow_from_env(use_production: bool = False) -> OAuthFlow:
         use_production: If True, use production redirect URI
     """
     import os
+
     from dotenv import load_dotenv
 
     load_dotenv()

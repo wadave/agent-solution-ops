@@ -119,6 +119,9 @@ steps:
       - 'DISPLAY_NAME_SUFFIX=Prod'
       - 'REQUIREMENTS_FILE=src/adk_agent/app_utils/.requirements.txt'
       - 'BUCKET_NAME=${_PROD_PROJECT_ID}-bucket'
+      - 'GEMINI_MODEL=${_GEMINI_MODEL}'
+      - 'RETRY_ATTEMPTS=${_RETRY_ATTEMPTS}'
+      - 'MCP_TIMEOUT=${_MCP_TIMEOUT}'
     waitFor: ['get-mcp-url', 'install-dependencies']
 
   # Register the Agent Engine with Gemini Enterprise after deployment so the
