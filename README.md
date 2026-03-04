@@ -128,7 +128,7 @@ This baseline security provides:
 - **Harmful Content Filtering**: Enforces Responsible AI (RAI) filters for hate speech, harassment, sexually explicit content, and dangerous activities.
 - **Malicious URI Detection**: Identifies and blocks links to known malicious sites.
 
-For a detailed comparison of security enforcement options, see [MODEL_ARMOR_GUIDE.md](file:///usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/MODEL_ARMOR_GUIDE.md).
+For a detailed comparison of security enforcement options, see [MODEL_ARMOR_GUIDE.md](file:///usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/docs/model_armor_guide.md).
 
 ### Environment-Based Switching
 The `ENVIRONMENT` environment variable dictates the authentication flow:
@@ -203,7 +203,7 @@ AUTH_ID='staging-weather-oauth-token'
 ### 4. Run Locally
 
 ```bash
-uv run adk web src --port 8501 --reload_agents
+uv run adk web src --port 8501
 ```
 
 Visit http://localhost:8501 and try: "What's the weather in Los Angeles?"

@@ -10,9 +10,9 @@
   - **GE**: Gemini Enterprise.
   - **NWS**: National Weather Service.
 - **References**:
-  - [Project README](file:///usr/local/google/home/wangdave/remote_ws/projects/agents-solution-ops/README.md)
-  - [Weather MCP Server Source](file:///usr/local/google/home/wangdave/remote_ws/projects/agents-solution-ops/src/mcp_servers/weather_mcp_server/weather_server.py)
-  - [ADK Agent Source](file:///usr/local/google/home/wangdave/remote_ws/projects/agents-solution-ops/src/adk_agent/agent.py)
+  - [Project README](file:///usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/README.md)
+  - [Weather MCP Server Source](file:///usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/src/mcp_servers/weather_mcp_server/weather_server.py)
+  - [ADK Agent Source](file:///usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/src/adk_agent/agent.py)
 
 ---
 
@@ -79,6 +79,7 @@
 - **Technology Stack**:
   - **Language**: Python 3.12+
   - **Frameworks**: ADK, FastMCP, FastAPI (via FastMCP), Pydantic.
+  - **Model**: `gemini-2.5-flash` with `HttpRetryOptions(attempts=3)` for built-in transient error handling.
   - **Infrastructure**: Terraform, Google Cloud Run, Vertex AI Agent Engine, Google Artifact Registry, **Google Model Armor**.
 - **Data Flow and Control Flow**:
   - User sends a query to Gemini Enterprise.
@@ -112,8 +113,9 @@
 
 - **Responsibilities**: Tool execution and data fetching from NWS.
 - **Interfaces/APIs**:
-  - `get_alerts(state)`: Fetches active alerts.
-  - `get_forecast(lat, lon)`: Fetches forecast.
+  - `get_alerts(state)`: Fetches active alerts for a US state.
+  - `get_forecast(latitude, longitude)`: Fetches forecast by coordinates.
+  - `get_forecast_by_city(city, state)`: Fetches forecast by city name using geocoding (Nominatim).
 - **Security Middleware**: `OAuthMiddleware` intercepts `/mcp` calls to ensure a valid Bearer token is present and verified against Google's Auth provider.
 
 ---
@@ -186,6 +188,7 @@
   - **v1.0.0 (2026-02-25)**: Initial design document creation.
   - **v1.1.0 (2026-02-25)**: Added trade-off analysis section.
   - **v1.2.0 (2026-02-27)**: Integrated Model Armor security architecture and comparison guide.
+  - **v1.3.0 (2026-03-04)**: Added `get_forecast_by_city` tool; added model specification (`gemini-2.5-flash`); corrected MCP tools list.
 
 ---
 
