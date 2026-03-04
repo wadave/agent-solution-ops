@@ -13,7 +13,7 @@
 # limitations under the License.
 
 provider "google" {
-  region = var.region
+  region                = var.region
   user_project_override = true
 }
 
@@ -24,4 +24,10 @@ resource "google_storage_bucket" "logs_data_bucket" {
   uniform_bucket_level_access = true
 
   depends_on = [resource.google_project_service.services]
+}
+
+resource "google_storage_bucket_object" "dummy_source" {
+  name   = "dummy/source-b64.txt"
+  bucket = google_storage_bucket.logs_data_bucket.name
+  source = "${path.module}/../dummy_source/source-b64.txt"
 }

@@ -16,8 +16,9 @@
 # CI/CD pipelines will update with actual source code after creation
 # Note: The file is already base64-encoded to avoid binary corruption when reading via Terraform
 data "google_storage_bucket_object_content" "dummy_source_b64" {
-  name   = "dummy/source-b64.txt"
-  bucket = "agent-starter-pack"
+  name       = google_storage_bucket_object.dummy_source.name
+  bucket     = google_storage_bucket_object.dummy_source.bucket
+  depends_on = [google_storage_bucket_object.dummy_source]
 }
 
 # Create an Artifact Registry repository for the MCP server

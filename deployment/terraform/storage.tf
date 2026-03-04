@@ -22,3 +22,10 @@ resource "google_storage_bucket" "logs_data_bucket" {
 
   depends_on = [resource.google_project_service.cicd_services, resource.google_project_service.deploy_project_services]
 }
+
+resource "google_storage_bucket_object" "dummy_source" {
+  for_each = local.deploy_project_ids
+  name     = "dummy/source-b64.txt"
+  bucket   = google_storage_bucket.logs_data_bucket[each.value].name
+  source   = "${path.module}/dummy_source/source-b64.txt"
+}

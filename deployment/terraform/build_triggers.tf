@@ -109,7 +109,7 @@ resource "google_cloudbuild_trigger" "deploy_to_prod_pipeline" {
       branch = "main"
     }
   }
-  filename = ".cloudbuild/deploy-to-prod.yaml"
+  filename           = ".cloudbuild/deploy-to-prod.yaml"
   include_build_logs = "INCLUDE_BUILD_LOGS_WITH_STATUS"
   approval_config {
     approval_required = true

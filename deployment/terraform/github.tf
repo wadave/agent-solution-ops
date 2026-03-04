@@ -18,7 +18,7 @@ provider "github" {
 
 # Try to get existing repo
 data "github_repository" "existing_repo" {
-  count = var.create_repository ? 0 : 1
+  count     = var.create_repository ? 0 : 1
   full_name = "${var.repository_owner}/${var.repository_name}"
 }
 
@@ -29,10 +29,10 @@ resource "github_repository" "repo" {
   description = "Repository created with goo.gle/agent-starter-pack"
   visibility  = "private"
 
-  has_issues      = true
-  has_wiki        = false
-  has_projects    = false
-  has_downloads   = false
+  has_issues    = true
+  has_wiki      = false
+  has_projects  = false
+  has_downloads = false
 
   allow_merge_commit = true
   allow_squash_merge = true
@@ -57,20 +57,20 @@ data "google_project" "cicd_project" {
 
 # Grant Cloud Build service account access to GitHub PAT secret — only when creating connection.
 resource "google_secret_manager_secret_iam_member" "cloudbuild_secret_accessor" {
-  count     = var.create_cb_connection ? 0 : 1
-  project   = var.cicd_runner_project_id
-  secret_id = data.google_secret_manager_secret.github_pat[0].secret_id
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:service-${data.google_project.cicd_project.number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
+  count      = var.create_cb_connection ? 0 : 1
+  project    = var.cicd_runner_project_id
+  secret_id  = data.google_secret_manager_secret.github_pat[0].secret_id
+  role       = "roles/secretmanager.secretAccessor"
+  member     = "serviceAccount:service-${data.google_project.cicd_project.number}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
   depends_on = [resource.google_project_service.cicd_services]
 }
 
 # Create the GitHub connection — skipped when connection already exists (create_cb_connection = true).
 resource "google_cloudbuildv2_connection" "github_connection" {
-  count      = var.create_cb_connection ? 0 : 1
-  project    = var.cicd_runner_project_id
-  location   = var.region
-  name       = var.host_connection_name
+  count    = var.create_cb_connection ? 0 : 1
+  project  = var.cicd_runner_project_id
+  location = var.region
+  name     = var.host_connection_name
 
   github_config {
     app_installation_id = var.github_app_installation_id

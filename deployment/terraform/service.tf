@@ -64,8 +64,10 @@ resource "google_cloud_run_v2_service" "mcp_server" {
 # Read base64-encoded dummy source tarball from GCS for initial Agent Engine creation
 # CI/CD pipelines will update with actual source code after creation
 data "google_storage_bucket_object_content" "dummy_source_b64" {
-  name   = "dummy/source-b64.txt"
-  bucket = "agent-starter-pack"
+  for_each   = local.deploy_project_ids
+  name       = google_storage_bucket_object.dummy_source[each.key].name
+  bucket     = google_storage_bucket_object.dummy_source[each.key].bucket
+  depends_on = [google_storage_bucket_object.dummy_source]
 }
 
 resource "google_vertex_ai_reasoning_engine" "app" {
@@ -98,7 +100,7 @@ resource "google_vertex_ai_reasoning_engine" "app" {
 
     source_code_spec {
       inline_source {
-        source_archive = trimspace(data.google_storage_bucket_object_content.dummy_source_b64.content)
+        source_archive = trimspace(data.google_storage_bucket_object_content.dummy_source_b64[each.key].content)
       }
 
       python_spec {
