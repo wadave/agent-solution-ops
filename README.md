@@ -214,14 +214,15 @@ Visit http://localhost:8501 and try: "What's the weather in Los Angeles?"
 
 ### Architecture
 
-Deployment is split across two tools, each owning what it is best suited for:
+Deployment uses a hybrid approach to separate infrastructure provisioning from application code lifecycle:
 
 | Layer | Tool | Resources |
 |---|---|---|
-| Infrastructure | Terraform | Cloud Run (MCP server), Artifact Registry, GCS buckets, IAM, Gemini Enterprise OAuth registration, **Model Armor Floor Settings** |
-| Agent Engine | `deployment/deploy_agents.py` | Vertex AI Agent Engine (create + update) |
+| Infrastructure Shells | Terraform | Cloud Run (MCP server), Vertex AI Agent Engine, Artifact Registry, GCS buckets, IAM, Gemini Enterprise OAuth registration, **Model Armor Floor Settings** |
+| Server Code Deployment | `gcloud run deploy` | Cloud Run (Deploy MCP Server Docker image) |
+| Agent Code Deployment | `deployment/deploy_agents.py` | Vertex AI Agent Engine (Deploy Python code and update env vars) |
 
-Terraform manages registration but **not** the Agent Engine source/env-vars. `deploy_agents.py` is the single owner of that resource — it creates it on first run and updates source code and env vars on every subsequent run. This avoids the split-ownership problem where two tools fight over env vars.
+Terraform provisions the initial resource "shells" using dummy source code/images and uses `lifecycle { ignore_changes = [...] }` to ignore future updates. This allows the CI/CD pipeline to deploy application code rapidly using the Python SDK and `gcloud CLI` without risking state drift or fighting with Terraform over environment variables.
 
 ### CI/CD Pipeline
 You would need to push the repository to GitHub to trigger the CI/CD pipeline.
@@ -234,14 +235,17 @@ build MCP Docker image
         ↓
 push image to Artifact Registry
         ↓
-terraform apply  ──── Cloud Run MCP server
+terraform apply  ──── Cloud Run MCP server (Provision Infrastructure Shell)
+                 ──── Agent Engine (Provision Infrastructure Shell)
                  ──── GE OAuth authorization
                  ──── GE agent registration
         ↓
 extract Cloud Run URL  (gcloud run services describe)
         ↓
-deploy_agents.py  ──── Agent Engine (create or update)
-                       env vars: MCP_URL, AUTH_ID, LOGS_BUCKET_NAME, telemetry
+gcloud run deploy ─── Deploy MCP Server Docker Image
+        ↓
+deploy_agents.py  ─── Deploy Agent Engine Python Code
+                      env vars: MCP_URL, AUTH_ID, LOGS_BUCKET_NAME, telemetry
         ↓
 load test  (staging only)
         ↓
@@ -411,9 +415,9 @@ terraform init
 terraform apply
 ```
 
-This creates all supporting infrastructure: service accounts, IAM bindings, Cloud Build triggers, Artifact Registry repositories, GCS buckets, and Cloud Run services.
+This creates all supporting infrastructure: service accounts, IAM bindings, Cloud Build triggers, Artifact Registry repositories, GCS buckets, Cloud Run services, and the Agent Engine shell.
 
-> **Note:** The Agent Engine itself is not created here. It is created on the first successful Cloud Build run by `deploy_agents.py`.
+> **Note:** The Agent Engine and MCP Server are provisioned with dummy code/images during this step. Your CI/CD pipeline will deploy the actual application code on the first run.
 
 #### Step 6 — Push to trigger CI/CD
 

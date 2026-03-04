@@ -75,7 +75,7 @@
   - **VertexAISession Services**: Manages session state, conversation history, and user context across multi-turn interactions.
   - **ADK Agent**: Orchestrates tool calls, handles session context, and implements environment-aware authentication logic. Features **Gemini model retry logic** to handle API quotas, rate limiting, and transient network errors gracefully.
   - **Weather MCP Server**: FastMCP-based service providing specific tools (`get_forecast`, `get_alerts`) with built-in OAuth verification middleware.
-  - **Deployment Layer**: Terraform (Infra) + Cloud Build (CI/CD) + `deploy_agents.py` (Agent Lifecycle).
+  - **Deployment Layer**: Terraform (Infrastructure Shells) + Cloud Build (CI/CD) + `deploy_agents.py` & `gcloud CLI` (Code Deployment).
 - **Technology Stack**:
   - **Language**: Python 3.12+
   - **Frameworks**: ADK, FastMCP, FastAPI (via FastMCP), Pydantic.
@@ -156,17 +156,18 @@
 ## 9. Deployment Architecture
 
 - **Environments**: Support for `development` (local) and `production` (Google Cloud).
-- **CI/CD Pipeline**: Cloud Build automates image builds, Terraform applies infrastructure changes, and `deploy_agents.py` handles the Vertex AI Agent deployment.
+- **CI/CD Pipeline**: Cloud Build automates image builds, Terraform applies infrastructure shells, and SDKs/CLIs deploy the application code.
 - **Infrastructure Diagram**:
   ```mermaid
   graph TD
       CB[Cloud Build] -->|Builds| AR[Artifact Registry]
       CB -->|Applies| TF[Terraform]
-      TF -->|Creates| CR[Cloud Run]
+      TF -->|Provisions Shell| CR[Cloud Run]
+      TF -->|Provisions Shell| AE[Agent Engine]
       TF -->|Creates| IAM[Service Accounts]
       TF -->|Configures| MA[Model Armor Floor Settings]
-      CB -->|Invokes| DA[deploy_agents.py]
-      DA -->|Deploys| AE[Agent Engine]
+      CB -->|gcloud run deploy| CR
+      CB -->|deploy_agents.py| AE
   ```
 
 ---
