@@ -131,7 +131,10 @@ class TestAgentResponseQuality:
         ]
 
         for query in weather_queries:
-            assert any(word in query.lower() for word in ["weather", "forecast", "rain", "temperature", "conditions"])
+            assert any(
+                word in query.lower()
+                for word in ["weather", "forecast", "rain", "temperature", "conditions"]
+            )
 
     def test_general_query_no_routing(self):
         """Test that general queries are basic interaction."""
@@ -142,9 +145,7 @@ class TestAgentResponseQuality:
         ]
 
         for query in general_queries:
-            assert not any(
-                word in query.lower() for word in ["weather", "forecast"]
-            )
+            assert not any(word in query.lower() for word in ["weather", "forecast"])
 
     def test_response_format_markdown(self):
         """Test that responses should be ideally formatted in Markdown."""

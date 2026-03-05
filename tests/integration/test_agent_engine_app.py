@@ -24,11 +24,13 @@ from adk_agent.agent_engine_app import AgentEngineApp
 @pytest.fixture
 def agent_app() -> AgentEngineApp:
     """Fixture to create and set up AgentEngineApp instance"""
-    from adk_agent.agent_engine_app import AgentEngineApp
-    from adk_agent.agent import app as adk_app
+    from unittest.mock import MagicMock
+
     from google.adk.artifacts import InMemoryArtifactService
     from google.adk.sessions.in_memory_session_service import InMemorySessionService
-    from unittest.mock import MagicMock
+
+    from adk_agent.agent import app as adk_app
+    from adk_agent.agent_engine_app import AgentEngineApp
 
     agent_engine = AgentEngineApp(
         app=adk_app,
@@ -49,6 +51,7 @@ async def test_agent_stream_query(mock_get_tools, agent_app: AgentEngineApp) -> 
     Tests that the agent returns valid streaming responses.
     """
     from adk_agent.agent import root_agent
+
     root_agent.tools = []
     mock_get_tools.return_value = []
 

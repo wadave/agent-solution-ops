@@ -14,6 +14,7 @@
 # Author: Dave Wang
 
 """Integration tests for the deployed Hosting Agent (ADK)."""
+
 import asyncio
 import sys
 from pathlib import Path
@@ -22,19 +23,19 @@ from pathlib import Path
 tests_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(tests_dir))
 
-from test_config import (
+import pytest  # noqa: E402
+from test_config import (  # noqa: E402
     DEFAULT_USER_ID,
-    HOSTING_AGENT_RESOURCE_NAME,
     HOSTING_AGENT_ID,
+    HOSTING_AGENT_RESOURCE_NAME,
     LOCATION,
     PROJECT_ID,
 )
-from test_utils import print_test_summary, run_adk_agent_test
-import pytest
+from test_utils import print_test_summary, run_adk_agent_test  # noqa: E402
 
 pytestmark = pytest.mark.skipif(
     not HOSTING_AGENT_ID or not HOSTING_AGENT_RESOURCE_NAME,
-    reason="HOSTING_AGENT_ID or PROJECT_NUMBER not set in environment. Skipping deployed tests."
+    reason="HOSTING_AGENT_ID or PROJECT_NUMBER not set in environment. Skipping deployed tests.",
 )
 
 
@@ -76,9 +77,9 @@ async def test_hosting_agent_generic():
 
 async def main():
     """Run all hosting agent tests."""
-    print("="*80)
+    print("=" * 80)
     print("TESTING DEPLOYED HOSTING AGENT (ADK)")
-    print("="*80)
+    print("=" * 80)
 
     results = []
 

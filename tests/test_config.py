@@ -28,6 +28,7 @@ Optional environment variables (with sensible defaults or derived values):
     GOOGLE_CLOUD_REGION / GOOGLE_CLOUD_LOCATION: GCP region (default: us-central1)
     HOSTING_AGENT_ID: Reasoning Engine ID for Hosting Agent
 """
+
 import os
 from pathlib import Path
 

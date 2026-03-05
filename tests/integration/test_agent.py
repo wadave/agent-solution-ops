@@ -28,7 +28,6 @@ def test_agent_stream(mock_get_tools) -> None:
     Integration test for the agent stream functionality.
     Tests that the agent returns valid streaming responses.
     """
-    from adk_agent.agent import root_agent
     root_agent.tools = []
     mock_get_tools.return_value = []
 
@@ -54,4 +53,6 @@ def test_agent_stream(mock_get_tools) -> None:
         if event.content and event.content.parts and any(part.text for part in event.content.parts):
             has_text_content = True
             break
-    assert has_text_content, f"Expected at least one message with text content. Events were: {events}"
+    assert has_text_content, (
+        f"Expected at least one message with text content. Events were: {events}"
+    )

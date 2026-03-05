@@ -13,6 +13,7 @@
 # limitations under the License.
 
 """Master script to run all tests."""
+
 import asyncio
 import sys
 from pathlib import Path
@@ -21,14 +22,14 @@ from pathlib import Path
 tests_dir = Path(__file__).parent
 sys.path.insert(0, str(tests_dir))
 
-from integration import test_deployed_hosting_agent
+from integration import test_deployed_hosting_agent  # noqa: E402
 
 
 async def main():
     """Run all primary integration test suites sequentially."""
-    print("="*80)
+    print("=" * 80)
     print("STARTING A2A INTEGRATION TESTS")
-    print("="*80)
+    print("=" * 80)
 
     # Track overall success
     all_success = True
@@ -43,7 +44,7 @@ async def main():
         all_success = False
 
     # Summary
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     if all_success:
         print("✓ ALL TEST SUITES PASSED!")
         sys.exit(0)
