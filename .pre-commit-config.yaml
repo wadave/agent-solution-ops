@@ -11,18 +11,18 @@ repos:
       - id: requirements-txt-fixer
 
   - repo: https://github.com/asottile/setup-cfg-fmt
-    rev: v3.1.0
+    rev: v3.2.0
     hooks:
       - id: setup-cfg-fmt
 
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.21.0
+    rev: v3.21.2
     hooks:
       - id: pyupgrade
         args: [--py39-plus]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.1
+    rev: v0.15.5
     hooks:
       # Run the linter and fix issues
       - id: ruff
@@ -63,7 +63,7 @@ repos:
       - id: nbqa-ruff
 
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.45.0 # Use the latest stable version
+    rev: v0.48.0 # Use the latest stable version
     hooks:
       - id: markdownlint
         args:
@@ -78,8 +78,8 @@ repos:
 
 
   - repo: https://github.com/Yelp/detect-secrets
-    rev: v1.4.0 # Use the latest stable version
+    rev: v1.5.0 # Use the latest stable version
     hooks:
       - id: detect-secrets
-        args: ['--baseline', '.secrets.baseline']
+        args: ['--baseline', '.secrets.baseline', '--exclude-secrets', '(?i)dummy|placeholder']
         exclude: package.lock.json

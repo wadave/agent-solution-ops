@@ -195,7 +195,7 @@ credentials.json
 token.json
 client_secret.json
 client_secrets.json
-.secrets.baseline
+#.secrets.baseline
 
 # Agent / AI Configuration
 .gemini/
