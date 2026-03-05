@@ -67,6 +67,9 @@ class TestGetAccessToken:
     def _make_context(self, state: dict) -> MagicMock:
         ctx = MagicMock()
         ctx.session.state = state
+        ctx.state = None
+        ctx.auth_token = None
+        ctx.credentials = None
         return ctx
 
     def test_returns_token_by_exact_auth_id(self):

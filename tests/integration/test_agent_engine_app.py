@@ -24,9 +24,20 @@ from adk_agent.agent_engine_app import AgentEngineApp
 @pytest.fixture
 def agent_app() -> AgentEngineApp:
     """Fixture to create and set up AgentEngineApp instance"""
-    from adk_agent.agent_engine_app import agent_engine
+    from adk_agent.agent_engine_app import AgentEngineApp
+    from adk_agent.agent import app as adk_app
+    from google.adk.artifacts import InMemoryArtifactService
+    from google.adk.sessions.in_memory_session_service import InMemorySessionService
+    from unittest.mock import MagicMock
 
+    agent_engine = AgentEngineApp(
+        app=adk_app,
+        artifact_service_builder=lambda: InMemoryArtifactService(),
+        session_service_builder=lambda: InMemorySessionService(),
+    )
     agent_engine.set_up()
+    # Mock logger to avoid Cloud Logging permission errors during local testing
+    agent_engine.logger = MagicMock()
     return agent_engine
 
 
@@ -37,6 +48,8 @@ async def test_agent_stream_query(mock_get_tools, agent_app: AgentEngineApp) -> 
     Integration test for the agent stream query functionality.
     Tests that the agent returns valid streaming responses.
     """
+    from adk_agent.agent import root_agent
+    root_agent.tools = []
     mock_get_tools.return_value = []
 
     # Create message and events for the async_stream_query
