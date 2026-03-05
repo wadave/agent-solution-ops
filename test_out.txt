@@ -1,0 +1,566 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0
+rootdir: /usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops
+configfile: pyproject.toml
+plugins: locust-2.43.3, asyncio-1.3.0, anyio-4.12.1
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 16 items
+
+tests/integration/test_agent.py F                                        [  6%]
+tests/integration/test_agent_engine_app.py FF                            [ 18%]
+tests/integration/test_deployed_hosting_agent.py EFFF                    [ 43%]
+tests/unit/test_dummy.py ........F                                       [100%]
+
+==================================== ERRORS ====================================
+_______________________ ERROR at setup of test_adk_agent _______________________
+file /usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/tests/test_utils.py, line 148
+  async def test_adk_agent(
+      agent_resource_name: str,
+      query: str,
+      project_id: str,
+      location: str,
+      user_id: str = "test_user",
+  ) -> tuple[bool, str | None]:
+      """
+      Test an ADK agent via the agent_engines API.
+
+      Args:
+          agent_resource_name: Full resource name of the agent
+          query: The query to send
+          project_id: GCP project ID
+          location: GCP location
+          user_id: User ID for the session
+
+      Returns:
+          Tuple of (success, response_text)
+      """
+      import vertexai
+      from vertexai import agent_engines
+
+      print(f"\n{'='*80}")
+      print("Testing ADK Agent")
+      print(f"Resource: {agent_resource_name}")
+      print(f"Query: {query}")
+      print('='*80)
+
+      # Initialize Vertex AI
+      vertexai.init(project=project_id, location=location)
+
+      # Get the remote agent
+      remote_agent = agent_engines.get(agent_resource_name)
+      print(f"✓ Connected to agent: {remote_agent.display_name}")
+
+      # Create a session
+      session = await remote_agent.async_create_session(user_id=user_id)
+      session_id = session["id"] if isinstance(session, dict) else session.id
+      print(f"✓ Session created: {session_id}")
+
+      # Stream query
+      events = []
+      async for event in remote_agent.async_stream_query(
+          user_id=user_id,
+          session_id=session_id,
+          message=query,
+      ):
+          events.append(event)
+
+      # Extract final text response
+      final_text_responses = [
+          e for e in events
+          if e.get("content", {}).get("parts", [{}])[0].get("text")
+          and not e.get("content", {}).get("parts", [{}])[0].get("function_call")
+      ]
+
+      if final_text_responses:
+          response_text = final_text_responses[0]["content"]["parts"][0]["text"]
+          print("\n✓ Response received:")
+          print("-" * 80)
+          print(response_text[:500])
+          if len(response_text) > 500:
+              print(f"... (truncated, total length: {len(response_text)})")
+          print("-" * 80)
+          return True, response_text
+      else:
+          print("\n✗ No text response received")
+          return False, None
+E       fixture 'agent_resource_name' not found
+>       available fixtures: _class_scoped_runner, _function_scoped_runner, _module_scoped_runner, _package_scoped_runner, _session_scoped_runner, anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, doctest_namespace, event_loop_policy, fastsession, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, monkeypatch, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, session, subtests, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/tests/test_utils.py:148
+=================================== FAILURES ===================================
+______________________________ test_agent_stream _______________________________
+
+mock_get_tools = <AsyncMock name='get_tools' id='140363729568784'>
+
+    @patch("google.adk.tools.mcp_tool.mcp_toolset.McpToolset.get_tools")
+    def test_agent_stream(mock_get_tools) -> None:
+        """
+        Integration test for the agent stream functionality.
+        Tests that the agent returns valid streaming responses.
+        """
+        mock_get_tools.return_value = []
+    
+        session_service = InMemorySessionService()
+    
+        session = session_service.create_session_sync(user_id="test_user", app_name="test")
+        runner = Runner(agent=root_agent, session_service=session_service, app_name="test")
+    
+        message = types.Content(role="user", parts=[types.Part.from_text(text="Why is the sky blue?")])
+    
+        events = list(
+            runner.run(
+                new_message=message,
+                user_id="test_user",
+                session_id=session.id,
+                run_config=RunConfig(streaming_mode=StreamingMode.SSE),
+            )
+        )
+        assert len(events) > 0, "Expected at least one message"
+    
+        has_text_content = False
+        for event in events:
+            if event.content and event.content.parts and any(part.text for part in event.content.parts):
+                has_text_content = True
+                break
+>       assert has_text_content, "Expected at least one message with text content"
+E       AssertionError: Expected at least one message with text content
+E       assert False
+
+tests/integration/test_agent.py:55: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  google_adk.google.adk.sessions.in_memory_session_service:in_memory_session_service.py:77 Deprecated. Please migrate to the async method.
+___________________________ test_agent_stream_query ____________________________
+
+mock_get_tools = <AsyncMock name='get_tools' id='140363693269904'>
+agent_app = <adk_agent.agent_engine_app.AgentEngineApp object at 0x7fa8faa4f620>
+
+    @pytest.mark.asyncio
+    @patch("google.adk.tools.mcp_tool.mcp_toolset.McpToolset.get_tools")
+    async def test_agent_stream_query(mock_get_tools, agent_app: AgentEngineApp) -> None:
+        """
+        Integration test for the agent stream query functionality.
+        Tests that the agent returns valid streaming responses.
+        """
+        mock_get_tools.return_value = []
+    
+        # Create message and events for the async_stream_query
+        message = "Hi!"
+        events = []
+>       async for event in agent_app.async_stream_query(message=message, user_id="test"):
+
+tests/integration/test_agent_engine_app.py:45: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.12/site-packages/vertexai/agent_engines/templates/adk.py:1044: in async_stream_query
+    session = await self.async_create_session(user_id=user_id)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/vertexai/agent_engines/templates/adk.py:1444: in async_create_session
+    session = await self._tmpl_attrs.get("session_service").create_session(
+.venv/lib/python3.12/site-packages/google/adk/sessions/vertex_ai_session_service.py:110: in create_session
+    reasoning_engine_id = self._get_reasoning_engine_id(app_name)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <google.adk.sessions.vertex_ai_session_service.VertexAiSessionService object at 0x7fa8fa3dbe00>
+app_name = 'adk_agent'
+
+    def _get_reasoning_engine_id(self, app_name: str):
+      if self._agent_engine_id:
+        return self._agent_engine_id
+    
+      if app_name.isdigit():
+        return app_name
+    
+      pattern = r'^projects/([a-zA-Z0-9-_]+)/locations/([a-zA-Z0-9-_]+)/reasoningEngines/(\d+)$'
+      match = re.fullmatch(pattern, app_name)
+    
+      if not match:
+>       raise ValueError(
+            f'App name {app_name} is not valid. It should either be the full'
+            ' ReasoningEngine resource name, or the reasoning engine id.'
+        )
+E       ValueError: App name adk_agent is not valid. It should either be the full ReasoningEngine resource name, or the reasoning engine id.
+
+.venv/lib/python3.12/site-packages/google/adk/sessions/vertex_ai_session_service.py:319: ValueError
+------------------------------ Captured log setup ------------------------------
+WARNING  vertexai.agent_engines.templates.adk:adk.py:248 telemetry enabled but proceeding without GenAI instrumentation, because not all packages (i.e. opentelemetry-instrumentation-google-genai) have been installed
+_____________________________ test_agent_feedback ______________________________
+
+args = (entries {
+  json_payload {
+    fields {
+      key: "logging.googleapis.com/diagnostic"
+      value {
+        struct_v...  }
+  }
+  severity: INFO
+  log_name: "projects/dw-genai-dev/logs/adk_agent.agent_engine_app"
+}
+partial_success: true
+,)
+kwargs = {'metadata': [('x-goog-api-client', 'gl-python/3.12.12 grpc/1.78.1 gax/2.30.0 gapic/3.13.0 gccl/3.13.0')], 'timeout': 60.0}
+
+    @functools.wraps(callable_)
+    def error_remapped_callable(*args, **kwargs):
+        try:
+>           return callable_(*args, **kwargs)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.venv/lib/python3.12/site-packages/google/api_core/grpc_helpers.py:55: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.12/site-packages/grpc/_interceptor.py:276: in __call__
+    response, ignored_call = self._with_call(
+.venv/lib/python3.12/site-packages/grpc/_interceptor.py:331: in _with_call
+    return call.result(), call
+           ^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/grpc/_channel.py:438: in result
+    raise self
+.venv/lib/python3.12/site-packages/grpc/_interceptor.py:314: in continuation
+    response, call = self._thunk(new_method).with_call(
+.venv/lib/python3.12/site-packages/grpc/_channel.py:1173: in with_call
+    return _end_unary_response_blocking(state, call, True, None)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+state = <grpc._channel._RPCState object at 0x7fa8f8172b10>
+call = <grpc._cython.cygrpc.SegregatedCall object at 0x7fa8f81b6840>
+with_call = True, deadline = None
+
+    def _end_unary_response_blocking(
+        state: _RPCState,
+        call: cygrpc.SegregatedCall,
+        with_call: bool,
+        deadline: Optional[float],
+    ) -> Union[ResponseType, Tuple[ResponseType, grpc.Call]]:
+        if state.code is grpc.StatusCode.OK:
+            if with_call:
+                rendezvous = _MultiThreadedRendezvous(state, call, None, deadline)
+                return state.response, rendezvous
+            return state.response
+>       raise _InactiveRpcError(state)  # pytype: disable=not-instantiable
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       grpc._channel._InactiveRpcError: <_InactiveRpcError of RPC that terminated with:
+E       	status = StatusCode.PERMISSION_DENIED
+E       	details = "Permission 'logging.logEntries.create' denied on resource (or it may not exist)."
+E       	debug_error_string = "UNKNOWN:Error received from peer ipv4:192.178.163.95:443 {grpc_status:7, grpc_message:"Permission \'logging.logEntries.create\' denied on resource (or it may not exist)."}"
+E       >
+
+.venv/lib/python3.12/site-packages/grpc/_channel.py:990: _InactiveRpcError
+
+The above exception was the direct cause of the following exception:
+
+agent_app = <adk_agent.agent_engine_app.AgentEngineApp object at 0x7fa8faa4f620>
+
+    def test_agent_feedback(agent_app: AgentEngineApp) -> None:
+        """
+        Integration test for the agent feedback functionality.
+        Tests that feedback can be registered successfully.
+        """
+        feedback_data = {
+            "score": 5,
+            "text": "Great response!",
+            "user_id": "test-user-456",
+            "session_id": "test-session-456",
+        }
+    
+        # Should not raise any exceptions
+>       agent_app.register_feedback(feedback_data)
+
+tests/integration/test_agent_engine_app.py:74: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/adk_agent/agent_engine_app.py:48: in register_feedback
+    self.logger.log_struct(feedback_obj.model_dump(), severity="INFO")
+.venv/lib/python3.12/site-packages/google/cloud/logging_v2/logger.py:241: in log_struct
+    self._do_log(client, StructEntry, info, **kw)
+.venv/lib/python3.12/site-packages/google/cloud/logging_v2/logger.py:170: in _do_log
+    client.logging_api.write_entries(entries, partial_success=True)
+.venv/lib/python3.12/site-packages/google/cloud/logging_v2/_gapic.py:167: in write_entries
+    self._gapic_api.write_log_entries(request=request)
+.venv/lib/python3.12/site-packages/google/cloud/logging_v2/services/logging_service_v2/client.py:1010: in write_log_entries
+    response = rpc(
+.venv/lib/python3.12/site-packages/google/api_core/gapic_v1/method.py:128: in __call__
+    return wrapped_func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/google/api_core/retry/retry_unary.py:294: in retry_wrapped_func
+    return retry_target(
+.venv/lib/python3.12/site-packages/google/api_core/retry/retry_unary.py:156: in retry_target
+    next_sleep = _retry_error_helper(
+.venv/lib/python3.12/site-packages/google/api_core/retry/retry_base.py:216: in _retry_error_helper
+    raise final_exc from source_exc
+.venv/lib/python3.12/site-packages/google/api_core/retry/retry_unary.py:147: in retry_target
+    result = target()
+             ^^^^^^^^
+.venv/lib/python3.12/site-packages/google/api_core/timeout.py:130: in func_with_timeout
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+args = (entries {
+  json_payload {
+    fields {
+      key: "logging.googleapis.com/diagnostic"
+      value {
+        struct_v...  }
+  }
+  severity: INFO
+  log_name: "projects/dw-genai-dev/logs/adk_agent.agent_engine_app"
+}
+partial_success: true
+,)
+kwargs = {'metadata': [('x-goog-api-client', 'gl-python/3.12.12 grpc/1.78.1 gax/2.30.0 gapic/3.13.0 gccl/3.13.0')], 'timeout': 60.0}
+
+    @functools.wraps(callable_)
+    def error_remapped_callable(*args, **kwargs):
+        try:
+            return callable_(*args, **kwargs)
+        except grpc.RpcError as exc:
+>           raise exceptions.from_grpc_error(exc) from exc
+E           google.api_core.exceptions.PermissionDenied: 403 Permission 'logging.logEntries.create' denied on resource (or it may not exist). [reason: "IAM_PERMISSION_DENIED"
+E           domain: "iam.googleapis.com"
+E           metadata {
+E             key: "permission"
+E             value: "logging.logEntries.create"
+E           }
+E           , detail: "User unauthorized to access projects/dw-genai-dev/logs/adk_agent.agent_engine_app: go/debugproto  \ndeny_explanation {\n  internal_info {\n    [type.googleapis.com/tech.iam.InternalAccessDeniedInfo] {\n      not_granted {\n      }\n    }\n  }\n}\n"
+E           , type_url: "type.googleapis.com/google.logging.v2.WriteLogEntriesPartialErrors"
+E           value: "\nX\010\000\022T\010\007\022PPermission \'logging.logEntries.create\' denied on resource (or it may not exist).\nX\010\001\022T\010\007\022PPermission \'logging.logEntries.create\' denied on resource (or it may not exist)."
+E           ]
+
+.venv/lib/python3.12/site-packages/google/api_core/grpc_helpers.py:57: PermissionDenied
+------------------------------ Captured log setup ------------------------------
+WARNING  opentelemetry._logs._internal:__init__.py:415 Overriding of current LoggerProvider is not allowed
+WARNING  opentelemetry._events:__init__.py:199 Overriding of current EventLoggerProvider is not allowed
+WARNING  vertexai.agent_engines.templates.adk:adk.py:248 telemetry enabled but proceeding without GenAI instrumentation, because not all packages (i.e. opentelemetry-instrumentation-google-genai) have been installed
+__________________________ test_hosting_agent_weather __________________________
+
+    async def test_hosting_agent_weather():
+        """Test the Hosting Agent with a weather query."""
+>       success, response = await test_adk_agent(
+            agent_resource_name=HOSTING_AGENT_RESOURCE_NAME,
+            query="weather in Dallas, TX",
+            project_id=PROJECT_ID,
+            location=LOCATION,
+            user_id=DEFAULT_USER_ID,
+        )
+
+tests/integration/test_deployed_hosting_agent.py:36: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_utils.py:181: in test_adk_agent
+    remote_agent = agent_engines.get(agent_resource_name)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/vertexai/agent_engines/__init__.py:63: in get
+    return AgentEngine(resource_name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/vertexai/agent_engines/_agent_engines.py:357: in __init__
+    self._gca_resource = self._get_gca_resource(resource_name=resource_name)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/google/cloud/aiplatform/base.py:680: in _get_gca_resource
+    resource_name = utils.full_resource_name(
+.venv/lib/python3.12/site-packages/google/cloud/aiplatform/utils/__init__.py:230: in full_resource_name
+    resource_id_validator(resource_name)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+resource_id = ''
+
+    def validate_id(resource_id: str):
+        """Validate resource ID.
+    
+        Args:
+            resource_id (str): Resource id.
+        Raises:
+            ValueError: If resource id is not a valid format.
+    
+        """
+        if not RESOURCE_ID_PATTERN.match(resource_id):
+>           raise ValueError(f"Resource {resource_id} is not a valid resource id.")
+E           ValueError: Resource  is not a valid resource id.
+
+.venv/lib/python3.12/site-packages/google/cloud/aiplatform/utils/__init__.py:168: ValueError
+----------------------------- Captured stdout call -----------------------------
+
+================================================================================
+Testing ADK Agent
+Resource: 
+Query: weather in Dallas, TX
+================================================================================
+------------------------------ Captured log call -------------------------------
+WARNING  root:initializer.py:624 REST async clients requires async credentials set using aiplatform.initializer._set_async_rest_credentials().
+Falling back to grpc since no async rest credentials were detected.
+______________________ test_hosting_agent_houston_weather ______________________
+
+    async def test_hosting_agent_houston_weather():
+        """Test the Hosting Agent with Houston weather query."""
+>       success, response = await test_adk_agent(
+            agent_resource_name=HOSTING_AGENT_RESOURCE_NAME,
+            query="weather in Houston, TX",
+            project_id=PROJECT_ID,
+            location=LOCATION,
+            user_id=DEFAULT_USER_ID,
+        )
+
+tests/integration/test_deployed_hosting_agent.py:48: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_utils.py:181: in test_adk_agent
+    remote_agent = agent_engines.get(agent_resource_name)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/vertexai/agent_engines/__init__.py:63: in get
+    return AgentEngine(resource_name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/vertexai/agent_engines/_agent_engines.py:357: in __init__
+    self._gca_resource = self._get_gca_resource(resource_name=resource_name)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/google/cloud/aiplatform/base.py:680: in _get_gca_resource
+    resource_name = utils.full_resource_name(
+.venv/lib/python3.12/site-packages/google/cloud/aiplatform/utils/__init__.py:230: in full_resource_name
+    resource_id_validator(resource_name)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+resource_id = ''
+
+    def validate_id(resource_id: str):
+        """Validate resource ID.
+    
+        Args:
+            resource_id (str): Resource id.
+        Raises:
+            ValueError: If resource id is not a valid format.
+    
+        """
+        if not RESOURCE_ID_PATTERN.match(resource_id):
+>           raise ValueError(f"Resource {resource_id} is not a valid resource id.")
+E           ValueError: Resource  is not a valid resource id.
+
+.venv/lib/python3.12/site-packages/google/cloud/aiplatform/utils/__init__.py:168: ValueError
+----------------------------- Captured stdout call -----------------------------
+
+================================================================================
+Testing ADK Agent
+Resource: 
+Query: weather in Houston, TX
+================================================================================
+------------------------------ Captured log call -------------------------------
+WARNING  root:initializer.py:624 REST async clients requires async credentials set using aiplatform.initializer._set_async_rest_credentials().
+Falling back to grpc since no async rest credentials were detected.
+__________________________ test_hosting_agent_generic __________________________
+
+    async def test_hosting_agent_generic():
+        """Test the Hosting Agent with a generic query."""
+>       success, response = await test_adk_agent(
+            agent_resource_name=HOSTING_AGENT_RESOURCE_NAME,
+            query="Hello, who are you?",
+            project_id=PROJECT_ID,
+            location=LOCATION,
+            user_id=DEFAULT_USER_ID,
+        )
+
+tests/integration/test_deployed_hosting_agent.py:60: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_utils.py:181: in test_adk_agent
+    remote_agent = agent_engines.get(agent_resource_name)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/vertexai/agent_engines/__init__.py:63: in get
+    return AgentEngine(resource_name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/vertexai/agent_engines/_agent_engines.py:357: in __init__
+    self._gca_resource = self._get_gca_resource(resource_name=resource_name)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/google/cloud/aiplatform/base.py:680: in _get_gca_resource
+    resource_name = utils.full_resource_name(
+.venv/lib/python3.12/site-packages/google/cloud/aiplatform/utils/__init__.py:230: in full_resource_name
+    resource_id_validator(resource_name)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+resource_id = ''
+
+    def validate_id(resource_id: str):
+        """Validate resource ID.
+    
+        Args:
+            resource_id (str): Resource id.
+        Raises:
+            ValueError: If resource id is not a valid format.
+    
+        """
+        if not RESOURCE_ID_PATTERN.match(resource_id):
+>           raise ValueError(f"Resource {resource_id} is not a valid resource id.")
+E           ValueError: Resource  is not a valid resource id.
+
+.venv/lib/python3.12/site-packages/google/cloud/aiplatform/utils/__init__.py:168: ValueError
+----------------------------- Captured stdout call -----------------------------
+
+================================================================================
+Testing ADK Agent
+Resource: 
+Query: Hello, who are you?
+================================================================================
+------------------------------ Captured log call -------------------------------
+WARNING  root:initializer.py:624 REST async clients requires async credentials set using aiplatform.initializer._set_async_rest_credentials().
+Falling back to grpc since no async rest credentials were detected.
+______________ TestGetAccessToken.test_returns_none_when_no_match ______________
+
+self = <test_dummy.TestGetAccessToken object at 0x7fa8fa4c3e90>
+
+    def test_returns_none_when_no_match(self):
+        from adk_agent.agent import get_access_token
+    
+        ctx = self._make_context({"other-key": "c" * 30})
+>       assert get_access_token(ctx, "my-auth-id") is None
+E       assert "<MagicMock name='mock.credentials.token' id='140363564538896'>" is None
+E        +  where "<MagicMock name='mock.credentials.token' id='140363564538896'>" = <function get_access_token at 0x7fa900ce28e0>(<MagicMock id='140363564074240'>, 'my-auth-id')
+
+tests/unit/test_dummy.py:88: AssertionError
+=============================== warnings summary ===============================
+.venv/lib/python3.12/site-packages/requests/__init__.py:113
+  /usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/.venv/lib/python3.12/site-packages/requests/__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (6.0.0.post1)/charset_normalizer (3.4.4) doesn't match a supported version!
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/google/adk/auth/auth_tool.py:94
+  /usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/.venv/lib/python3.12/site-packages/google/adk/auth/auth_tool.py:94: DeprecationWarning: This method is deprecated. Use credential_key instead.
+    self.credential_key = self.get_credential_key()
+
+tests/integration/test_agent.py::test_agent_stream
+  /usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/.venv/lib/python3.12/site-packages/google/adk/flows/llm_flows/base_llm_flow.py:615: UserWarning: [EXPERIMENTAL] CredentialManager: This feature is experimental and may change or be removed in future versions without notice. It may introduce breaking changes at any time.
+    credential = await CredentialManager(auth_config).get_auth_credential(
+
+tests/integration/test_agent.py::test_agent_stream
+  /usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/.venv/lib/python3.12/site-packages/google/adk/auth/credential_manager.py:84: UserWarning: [EXPERIMENTAL] CredentialExchangerRegistry: This feature is experimental and may change or be removed in future versions without notice. It may introduce breaking changes at any time.
+    self._exchanger_registry = CredentialExchangerRegistry()
+
+tests/integration/test_agent.py::test_agent_stream
+  /usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/.venv/lib/python3.12/site-packages/google/adk/auth/credential_manager.py:85: UserWarning: [EXPERIMENTAL] CredentialRefresherRegistry: This feature is experimental and may change or be removed in future versions without notice. It may introduce breaking changes at any time.
+    self._refresher_registry = CredentialRefresherRegistry()
+
+tests/integration/test_agent.py::test_agent_stream
+  /usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/.venv/lib/python3.12/site-packages/google/adk/auth/credential_manager.py:86: UserWarning: [EXPERIMENTAL] OAuth2DiscoveryManager: This feature is experimental and may change or be removed in future versions without notice. It may introduce breaking changes at any time.
+    self._discovery_manager = OAuth2DiscoveryManager()
+
+tests/integration/test_agent.py::test_agent_stream
+  /usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/.venv/lib/python3.12/site-packages/google/adk/auth/credential_manager.py:92: UserWarning: [EXPERIMENTAL] OAuth2CredentialExchanger: This feature is experimental and may change or be removed in future versions without notice. It may introduce breaking changes at any time.
+    oauth2_exchanger = OAuth2CredentialExchanger()
+
+tests/integration/test_agent.py::test_agent_stream
+  /usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/.venv/lib/python3.12/site-packages/google/adk/utils/feature_decorator.py:88: UserWarning: [EXPERIMENTAL] BaseCredentialExchanger: This feature is experimental and may change or be removed in future versions without notice. It may introduce breaking changes at any time.
+    return orig_init(self, *args, **kwargs)
+
+tests/integration/test_agent.py::test_agent_stream
+  /usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/.venv/lib/python3.12/site-packages/google/adk/auth/credential_manager.py:106: UserWarning: [EXPERIMENTAL] OAuth2CredentialRefresher: This feature is experimental and may change or be removed in future versions without notice. It may introduce breaking changes at any time.
+    oauth2_refresher = OAuth2CredentialRefresher()
+
+tests/integration/test_agent.py::test_agent_stream
+  /usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/.venv/lib/python3.12/site-packages/google/adk/utils/feature_decorator.py:88: UserWarning: [EXPERIMENTAL] BaseCredentialRefresher: This feature is experimental and may change or be removed in future versions without notice. It may introduce breaking changes at any time.
+    return orig_init(self, *args, **kwargs)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/integration/test_agent.py::test_agent_stream - AssertionError: E...
+FAILED tests/integration/test_agent_engine_app.py::test_agent_stream_query - ...
+FAILED tests/integration/test_agent_engine_app.py::test_agent_feedback - goog...
+FAILED tests/integration/test_deployed_hosting_agent.py::test_hosting_agent_weather
+FAILED tests/integration/test_deployed_hosting_agent.py::test_hosting_agent_houston_weather
+FAILED tests/integration/test_deployed_hosting_agent.py::test_hosting_agent_generic
+FAILED tests/unit/test_dummy.py::TestGetAccessToken::test_returns_none_when_no_match
+ERROR tests/integration/test_deployed_hosting_agent.py::test_adk_agent
+============== 7 failed, 8 passed, 10 warnings, 1 error in 28.13s ==============
+*** gpkg: This tool is configured to use Corp Airlock for package installs: http://go/corp-airlock
+*** gpkg: If Corp Airlock is breaking your workflow please report at: http://go/corp-airlock-feedback
+*** gpkg: Exceptions are available: http://go/corp-airlock#request-exception

@@ -1,0 +1,122 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.12, pytest-9.0.2, pluggy-1.6.0 -- /usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops
+configfile: pyproject.toml
+plugins: locust-2.43.3, asyncio-1.3.0, anyio-4.12.1
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 1 item
+
+tests/integration/test_agent.py::test_agent_stream FAILED
+
+=================================== FAILURES ===================================
+______________________________ test_agent_stream _______________________________
+
+mock_get_tools = <AsyncMock name='get_tools' id='140034622582864'>
+
+    @patch("google.adk.tools.mcp_tool.mcp_toolset.McpToolset.get_tools")
+    def test_agent_stream(mock_get_tools) -> None:
+        """
+        Integration test for the agent stream functionality.
+        Tests that the agent returns valid streaming responses.
+        """
+        from adk_agent.agent import mcp_toolset
+        mcp_toolset.auth_credential = None
+        mcp_toolset.auth_scheme = None
+        mock_get_tools.return_value = []
+    
+        session_service = InMemorySessionService()
+    
+        session = session_service.create_session_sync(user_id="test_user", app_name="test")
+        runner = Runner(agent=root_agent, session_service=session_service, app_name="test")
+    
+        message = types.Content(role="user", parts=[types.Part.from_text(text="Why is the sky blue?")])
+    
+        events = list(
+            runner.run(
+                new_message=message,
+                user_id="test_user",
+                session_id=session.id,
+                run_config=RunConfig(streaming_mode=StreamingMode.SSE),
+            )
+        )
+        assert len(events) > 0, "Expected at least one message"
+    
+        has_text_content = False
+        for event in events:
+            if event.content and event.content.parts and any(part.text for part in event.content.parts):
+                has_text_content = True
+                break
+>       assert has_text_content, f"Expected at least one message with text content. Events were: {events}"
+E       AssertionError: Expected at least one message with text content. Events were: [Event(model_version=None, content=Content(
+E           parts=[
+E             Part(
+E               function_call=FunctionCall(
+E                 args={
+E                   'authConfig': {
+E                     'authScheme': {<... 2 items at Max depth ...>},
+E                     'credentialKey': 'adk_oauth2_90cec6470d1d12e7_oauth2_a1572087f25fd41d',
+E                     'exchangedAuthCredential': {<... 2 items at Max depth ...>},
+E                     'rawAuthCredential': {<... 2 items at Max depth ...>}
+E                   },
+E                   'functionCallId': '_adk_toolset_auth_McpToolset'
+E                 },
+E                 id='adk-10d3571c-e872-489b-acc4-394688418dda',
+E                 name='adk_request_credential'
+E               )
+E             ),
+E           ]
+E         ), grounding_metadata=None, partial=None, turn_complete=None, finish_reason=None, error_code=None, error_message=None, interrupted=None, custom_metadata=None, usage_metadata=None, live_session_resumption_update=None, input_transcription=None, output_transcription=None, avg_logprobs=None, logprobs_result=None, cache_metadata=None, citation_metadata=None, interaction_id=None, invocation_id='e-6cc17ec8-71b9-4a2b-81eb-8a81732d91c2', author='root_agent', actions=EventActions(skip_summarization=None, state_delta={}, artifact_delta={}, transfer_to_agent=None, escalate=None, requested_auth_configs={}, requested_tool_confirmations={}, compaction=None, end_of_agent=None, agent_state=None, rewind_before_invocation_id=None), long_running_tool_ids={'adk-10d3571c-e872-489b-acc4-394688418dda'}, branch=None, id='cc7ca4bc-ae16-4725-abff-d0b5fd7330f3', timestamp=1772691280.029463)]
+E       assert False
+
+tests/integration/test_agent.py:58: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  google_adk.google.adk.sessions.in_memory_session_service:in_memory_session_service.py:77 Deprecated. Please migrate to the async method.
+=============================== warnings summary ===============================
+.venv/lib/python3.12/site-packages/requests/__init__.py:113
+  /usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/.venv/lib/python3.12/site-packages/requests/__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (6.0.0.post1)/charset_normalizer (3.4.4) doesn't match a supported version!
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/google/adk/auth/auth_tool.py:94
+  /usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/.venv/lib/python3.12/site-packages/google/adk/auth/auth_tool.py:94: DeprecationWarning: This method is deprecated. Use credential_key instead.
+    self.credential_key = self.get_credential_key()
+
+tests/integration/test_agent.py::test_agent_stream
+  /usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/.venv/lib/python3.12/site-packages/google/adk/flows/llm_flows/base_llm_flow.py:615: UserWarning: [EXPERIMENTAL] CredentialManager: This feature is experimental and may change or be removed in future versions without notice. It may introduce breaking changes at any time.
+    credential = await CredentialManager(auth_config).get_auth_credential(
+
+tests/integration/test_agent.py::test_agent_stream
+  /usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/.venv/lib/python3.12/site-packages/google/adk/auth/credential_manager.py:84: UserWarning: [EXPERIMENTAL] CredentialExchangerRegistry: This feature is experimental and may change or be removed in future versions without notice. It may introduce breaking changes at any time.
+    self._exchanger_registry = CredentialExchangerRegistry()
+
+tests/integration/test_agent.py::test_agent_stream
+  /usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/.venv/lib/python3.12/site-packages/google/adk/auth/credential_manager.py:85: UserWarning: [EXPERIMENTAL] CredentialRefresherRegistry: This feature is experimental and may change or be removed in future versions without notice. It may introduce breaking changes at any time.
+    self._refresher_registry = CredentialRefresherRegistry()
+
+tests/integration/test_agent.py::test_agent_stream
+  /usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/.venv/lib/python3.12/site-packages/google/adk/auth/credential_manager.py:86: UserWarning: [EXPERIMENTAL] OAuth2DiscoveryManager: This feature is experimental and may change or be removed in future versions without notice. It may introduce breaking changes at any time.
+    self._discovery_manager = OAuth2DiscoveryManager()
+
+tests/integration/test_agent.py::test_agent_stream
+  /usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/.venv/lib/python3.12/site-packages/google/adk/auth/credential_manager.py:92: UserWarning: [EXPERIMENTAL] OAuth2CredentialExchanger: This feature is experimental and may change or be removed in future versions without notice. It may introduce breaking changes at any time.
+    oauth2_exchanger = OAuth2CredentialExchanger()
+
+tests/integration/test_agent.py::test_agent_stream
+  /usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/.venv/lib/python3.12/site-packages/google/adk/utils/feature_decorator.py:88: UserWarning: [EXPERIMENTAL] BaseCredentialExchanger: This feature is experimental and may change or be removed in future versions without notice. It may introduce breaking changes at any time.
+    return orig_init(self, *args, **kwargs)
+
+tests/integration/test_agent.py::test_agent_stream
+  /usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/.venv/lib/python3.12/site-packages/google/adk/auth/credential_manager.py:106: UserWarning: [EXPERIMENTAL] OAuth2CredentialRefresher: This feature is experimental and may change or be removed in future versions without notice. It may introduce breaking changes at any time.
+    oauth2_refresher = OAuth2CredentialRefresher()
+
+tests/integration/test_agent.py::test_agent_stream
+  /usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/.venv/lib/python3.12/site-packages/google/adk/utils/feature_decorator.py:88: UserWarning: [EXPERIMENTAL] BaseCredentialRefresher: This feature is experimental and may change or be removed in future versions without notice. It may introduce breaking changes at any time.
+    return orig_init(self, *args, **kwargs)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/integration/test_agent.py::test_agent_stream - AssertionError: E...
+======================== 1 failed, 10 warnings in 2.83s ========================
+*** gpkg: This tool is configured to use Corp Airlock for package installs: http://go/corp-airlock
+*** gpkg: If Corp Airlock is breaking your workflow please report at: http://go/corp-airlock-feedback
+*** gpkg: Exceptions are available: http://go/corp-airlock#request-exception
