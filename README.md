@@ -224,6 +224,14 @@ Deployment uses a hybrid approach to separate infrastructure provisioning from a
 
 Terraform provisions the initial resource "shells" using dummy source code/images and uses `lifecycle { ignore_changes = [...] }` to ignore future updates. This allows the CI/CD pipeline to deploy application code rapidly using the Python SDK and `gcloud CLI` without risking state drift or fighting with Terraform over environment variables.
 
+#### Agent Naming and Identity
+The agent maintains a strict naming convention across both Vertex AI Agent Engine and Gemini Enterprise using the format: `ADK Hosting Agent for MCP (<environment>)` (e.g., `ADK Hosting Agent for MCP (staging)`).
+
+#### Deployment Resilience
+The `deploy_agents.py` script includes resilient deployment logic to prevent CI/CD pipeline failures:
+- **API Migration:** Automatically detects if an existing agent was created with the legacy `package_spec` API and recreates it using the modern `deployment_source` API.
+- **State Recovery:** If the GCP API returns a stale failed Long-Running Operation (LRO) due to a previous corrupted deployment state, the script catches the failure, extracts the resource name, and falls back to an `update()` call to force a fresh redeployment.
+
 ### CI/CD Pipeline
 You would need to push the repository to GitHub to trigger the CI/CD pipeline.
 

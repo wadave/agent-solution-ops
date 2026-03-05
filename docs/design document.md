@@ -249,6 +249,8 @@ Terraform is the primary tool for defining and enforcing the project's resilienc
 - **Environment Parity**: Terraform ensures that the `staging` and `production` environments are identical except for scale and data, enabling high-fidelity resilience testing in staging before production deployment.
 - **Resource Recovery**: By using `prevent_destroy` flags and automated backup configurations (e.g., for Cloud Storage and Secret Manager), Terraform minimizes the risk of accidental data loss.
 - **Gemini Model Retry Logic**: The ADK Agent is configured with robust retry policies to ensure high availability and gracefully degrade or recover from transient Vertex AI API errors or rate limiting.
+- **Agent Naming Consistency**: The host agent maintains a strict naming convention `ADK Hosting Agent for MCP (<environment>)` syncing identity across Vertex AI Agent Engine and Gemini Enterprise.
+- **Deployment State Recovery**: The Python deployment script handles dirty states (e.g., stale failed LROs on creation) by gracefully catching the error, extracting the resource ID, and falling back to an `update()` operation, ensuring pipelines recover from transient GCP API issues. It also auto-migrates agents from legacy APIs to modern SDK formats.
 
 ### 13.2 Failure Testing Strategies
 
