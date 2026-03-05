@@ -174,7 +174,7 @@ https://vertexaisearch.cloud.google.com/oauth-redirect
 
 ### 3. Set Environment Variables
 
-Edit `src/adk_agent/.env`:
+Edit `.env` at the project root (copied from `.env.example` in Step 1):
 
 ```bash
 # Environment — set to 'development' for local testing.
@@ -185,8 +185,8 @@ ENVIRONMENT=development
 GOOGLE_CLOUD_PROJECT="your-project-id"
 GOOGLE_CLOUD_LOCATION="us-central1"
 
-# MCP Server URL (Cloud Run service URL + /mcp)
-MCP_URL='https://your-mcp-server.run.app/mcp'
+# MCP Server URL (locally running MCP server + /mcp path)
+MCP_URL='http://localhost:8080/mcp'
 
 # OAuth Credentials (required for development mode only)
 GOOGLE_CLIENT_ID='your-client-id'
@@ -198,15 +198,20 @@ OAUTH_REDIRECT_URI_PROD='https://vertexaisearch.cloud.google.com/oauth-redirect'
 
 # Auth ID — must match the authorization registered in Gemini Enterprise
 AUTH_ID='staging-weather-oauth-token'
+
+# Agent configuration
+GEMINI_MODEL='gemini-2.5-flash'
+RETRY_ATTEMPTS=3
+MCP_TIMEOUT=60
 ```
 
 ### 4. Run Locally
 
 ```bash
-uv run adk web src --port 8501
+uv run adk web src
 ```
 
-Visit http://localhost:8501 and try: "What's the weather in Los Angeles?"
+Visit http://localhost:8000 and try: "What's the weather in Los Angeles?"
 
 ---
 ---
@@ -245,15 +250,16 @@ push image to Artifact Registry
         ↓
 terraform apply  ──── Cloud Run MCP server (Provision Infrastructure Shell)
                  ──── Agent Engine (Provision Infrastructure Shell)
-                 ──── GE OAuth authorization
-                 ──── GE agent registration
         ↓
-extract Cloud Run URL  (gcloud run services describe)
+extract Cloud Run URL  (terraform output)
         ↓
 gcloud run deploy ─── Deploy MCP Server Docker Image
         ↓
 deploy_agents.py  ─── Deploy Agent Engine Python Code
                       env vars: MCP_URL, AUTH_ID, LOGS_BUCKET_NAME, telemetry
+        ↓
+terraform apply  ──── GE OAuth authorization
+                 ──── GE agent registration
         ↓
 load test  (staging only)
         ↓
@@ -515,6 +521,9 @@ Handled automatically by Terraform in CI/CD when `oauth_client_id_secret_name` i
 | `GOOGLE_CLOUD_LOCATION` | No | Google Cloud region. Default: `us-central1`. |
 | `OAUTH_REDIRECT_URI_DEV` | No | Dev redirect URI. Default: `http://127.0.0.1:8000/dev-ui/`. |
 | `OAUTH_REDIRECT_URI_PROD` | No | Prod redirect URI. Default: `https://vertexaisearch.cloud.google.com/oauth-redirect`. |
+| `GEMINI_MODEL` | No | Gemini model to use. Default: `gemini-2.5-flash`. |
+| `RETRY_ATTEMPTS` | No | Number of retry attempts for transient errors. Default: `3`. |
+| `MCP_TIMEOUT` | No | Timeout in seconds for MCP server calls. Default: `60`. |
 | `DEBUG_CONTEXT` | No | Set to `true` to dump full session context to stderr on each MCP call. |
 | `LOGS_BUCKET_NAME` | No | GCS bucket for artifact storage. Default: none (uses in-memory). |
 
