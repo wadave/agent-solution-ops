@@ -170,6 +170,7 @@ steps:
       - 'TF_VAR_oauth_client_id_secret_name=${_OAUTH_CLIENT_ID_SECRET_NAME}'
     waitFor: ['deploy-adk-agent']
 
+
 # All substitution values are injected by the Cloud Build trigger defined in
 # deployment/terraform/build_triggers.tf — no defaults are set here.
 

@@ -63,7 +63,8 @@ module "gemini_enterprise_oauth" {
 # Register the Hosting Agent with Gemini Enterprise
 module "gemini_enterprise_agent_engine_register" {
   depends_on = [
-    module.gemini_enterprise_oauth
+    module.gemini_enterprise_oauth,
+    google_vertex_ai_reasoning_engine.app
   ]
   # We will iterate over the staging environment only
   # Only create if the oauth secrets are provided
