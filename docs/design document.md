@@ -28,11 +28,12 @@
   ```mermaid
   graph LR
       User((User)) --> GE[Gemini Enterprise UI]
-      GE --> MA[Model Armor Filter]
-      MA --> Agent[ADK Weather Agent]
+      GE --> Agent[ADK Weather Agent]
       Agent --> MCP[Weather MCP Server]
       MCP --> NWS[National Weather Service API]
-      Agent -.-> OAuth[Google OAuth 2.0]
+      GE -.->|OAuth Flow| OAuth[Google OAuth 2.0]
+      GE -.->|Filtered by| MA[Model Armor]
+      Agent -.->|Filtered by| MA
   ```
 
 ---
@@ -45,11 +46,15 @@
   graph TB
       subgraph "Google Cloud"
           direction TB
-          GE_Engine[Gemini Enterprise Engine]
-          MA[Model Armor Floor Settings]
-          subgraph "Vertex AI"
+          subgraph "User Interface"
+              GE_Engine[Gemini Enterprise Engine]
+          end
+          subgraph "Security"
+              MA[Model Armor Floor Settings]
+          end
+          subgraph "Gemini Enterprise"
               VS[VertexAISession Services]
-              Agent_Engine[Agent Engine / ADK Agent (Retry)]
+              Agent_Engine["Agent Engine / ADK Agent (Retry)"]
           end
           subgraph "Cloud Run"
               Cloud_Run[Weather MCP Server]
@@ -62,12 +67,16 @@
           Google_Auth[Google OAuth Provider]
       end
 
-      GE_Engine -->|Inspect & Block| MA
-      MA -->|Manage State| VS
+      GE_Engine -->|Manage Session| VS
       VS -->|Invoke| Agent_Engine
       Agent_Engine -->|Authenticated Tool Call| Cloud_Run
       Cloud_Run -->|API Request| NWS
+
+      GE_Engine -.->|Filtered by| MA
+      Agent_Engine -.->|Filtered by| MA
+
       GE_Engine <-->|Token Exchange| Google_Auth
+      GE_Engine -.->|Pass Token| Cloud_Run
       Cloud_Run -->|Verify Token| Google_Auth
   ```
 
