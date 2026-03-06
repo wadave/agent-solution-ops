@@ -119,7 +119,7 @@ See [`docs/model_armor_guide.md`](docs/model_armor_guide.md) for details.
 
 ### Prerequisites
 
-- Python 3.12+
+- Python 3.12
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) package manager
 - Google Cloud project with [OAuth 2.0 credentials](https://console.cloud.google.com/apis/credentials)
 
