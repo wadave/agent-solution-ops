@@ -1,4 +1,4 @@
-# Software Design Document (SDD) - Gemini Enterprise Weather Agent
+# Software Design Document: Remote MCP Server Integration with Gemini Enterprise
 
 ## 1. Introduction
 
@@ -109,6 +109,22 @@
   - Uses `header_provider` in production to bypass ADK's `CredentialManager` and read tokens directly from context state.
 - **State Management**: Uses `ReadonlyContext` to access session data provided by Gemini Enterprise.
 
+### Agent Engine App (`agent_engine_app`)
+
+- **Responsibilities**: Production hosting wrapper that extends `AdkApp` for deployment on Vertex AI Agent Engine.
+- **Key Class**: `AgentEngineApp(AdkApp)` — adds startup initialization, telemetry, and custom operations.
+- **Initialization (`set_up`)**: Calls `vertexai.init()`, invokes `setup_telemetry()` to configure OpenTelemetry tracing, and initializes Google Cloud Logging.
+- **Feedback Collection**: Exposes a `register_feedback` operation that validates incoming feedback via a Pydantic model (`Feedback`) and logs it as a structured entry to Google Cloud Logging.
+- **Artifact Storage**: Conditionally uses `GcsArtifactService` (when `LOGS_BUCKET_NAME` is set) or falls back to `InMemoryArtifactService`.
+- **Session Service**: Uses `VertexAiSessionService` for persistent session management.
+
+### Telemetry (`app_utils/telemetry`)
+
+- **Responsibilities**: Configures OpenTelemetry (OTEL) instrumentation for distributed tracing and GenAI content capture.
+- **Environment Variables**:
+  - `GOOGLE_CLOUD_AGENT_ENGINE_ENABLE_TELEMETRY`: Enables native Agent Engine telemetry export.
+  - `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT`: Captures full GenAI message content in traces.
+
 ### Weather MCP Server (`weather_mcp_server`)
 
 - **Responsibilities**: Tool execution and data fetching from NWS.
@@ -174,8 +190,10 @@
 
 ## 10. Testing Strategy
 
-- **Unit Testing**: `pytest` for agent logic and server tool verification.
-- **Integration Testing**: `direct_test.py` for headless tool execution testing.
+- **Unit Testing**: `pytest` under `tests/unit/` for discrete code component verification, and `src/mcp_servers/.../direct_test.py` for headless tool execution testing.
+- **Integration Testing**: `pytest` under `tests/integration/` for testing the deployed agent Engine against real resources.
+- **Load Testing**: Locust-based testing framework under `tests/load_test/` to simulate concurrent users.
+- **Evaluation**: ADK evaluation framework under `tests/eval/` for checking agent behavioral accuracy.
 - **Quality Metrics**: Code linting via `ruff`, security scanning via `gitleaks`/`secrets-baseline`.
 
 ---
@@ -190,6 +208,7 @@
   - **v1.1.0 (2026-02-25)**: Added trade-off analysis section.
   - **v1.2.0 (2026-02-27)**: Integrated Model Armor security architecture and comparison guide.
   - **v1.3.0 (2026-03-04)**: Added `get_forecast_by_city` tool; added model specification (`gemini-2.5-flash`); corrected MCP tools list.
+  - **v1.4.0 (2026-03-06)**: Documented `AgentEngineApp` (feedback registration), telemetry setup, and OTEL environment variables.
 
 ---
 
@@ -217,25 +236,24 @@
 
 ### 12.3 Security Enforcement: Floor Settings vs. Per-request Templates
 
-| Feature          | Project-wide Floor Settings                                                                                                   | Per-request Templates                                                                                         |
-| :--------------- | :---------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------ |
-| **Scope**        | Project-wide (Baseline)                                                                                                       | Per-request (Granular)                                                                                        |
-| **Implementation** | Infrastructure-as-Code (Terraform)                                                                                            | Code-integrated (Vertex AI Client)                                                                            |
-| **Maintenance**  | Centralized (managed via `model_armor.tf`)                                                                                    | Distributed (requires per-agent code updates)                                                                 |
-| **Decision**     | **Floor Settings** are implemented via Terraform to provide a "secure-by-default" project baseline without adding code debt. |
+| Feature            | Project-wide Floor Settings                                                                                                  | Per-request Templates                         |
+| :----------------- | :--------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------- |
+| **Scope**          | Project-wide (Baseline)                                                                                                      | Per-request (Granular)                        |
+| **Implementation** | Infrastructure-as-Code (Terraform)                                                                                           | Code-integrated (Vertex AI Client)            |
+| **Maintenance**    | Centralized (managed via `model_armor.tf`)                                                                                   | Distributed (requires per-agent code updates) |
+| **Decision**       | **Floor Settings** are implemented via Terraform to provide a "secure-by-default" project baseline without adding code debt. |
 
 ### 12.4 Domain-Applied AI/ML Expertise
 
 This project demonstrates expertise in applying AI to a specific industry vertical (Meteorology) with enterprise-grade constraints.
 
-| Domain Challenge | AI/ML Solution Pattern | Project Implementation |
-| :--- | :--- | :--- |
-| **Vertical Integration** | Domain-specific API orchestration | Integration with the **National Weather Service (NWS)** API via FastMCP tools. |
-| **Data Constraints** | Structured parsing for LLM ingestion | The `weather_server.py` parses complex GeoJSON into human-readable summaries (`format_alert`, `format_forecast_period`). |
-| **Security KPI** | Red Teaming & Prompt Filtering | **Google Model Armor** implementation for project-wide adversarial threat mitigation. |
-| **Identity KPI** | Verified User Identity for vertical data | **OAuth 2.0 (OIDC)** middleware to ensure the agent only fetches data the user is authorized to see. |
-| **Performance KPI** | Interactive Latency Targets | Architecture optimized for **< 2s response times** using Cloud Run and Vertex AI Agent Engine. |
-
+| Domain Challenge         | AI/ML Solution Pattern                   | Project Implementation                                                                                                   |
+| :----------------------- | :--------------------------------------- | :----------------------------------------------------------------------------------------------------------------------- |
+| **Vertical Integration** | Domain-specific API orchestration        | Integration with the **National Weather Service (NWS)** API via FastMCP tools.                                           |
+| **Data Constraints**     | Structured parsing for LLM ingestion     | The `weather_server.py` parses complex GeoJSON into human-readable summaries (`format_alert`, `format_forecast_period`). |
+| **Security KPI**         | Red Teaming & Prompt Filtering           | **Google Model Armor** implementation for project-wide adversarial threat mitigation.                                    |
+| **Identity KPI**         | Verified User Identity for vertical data | **OAuth 2.0 (OIDC)** middleware to ensure the agent only fetches data the user is authorized to see.                     |
+| **Performance KPI**      | Interactive Latency Targets              | Architecture optimized for **< 2s response times** using Cloud Run and Vertex AI Agent Engine.                           |
 
 ---
 

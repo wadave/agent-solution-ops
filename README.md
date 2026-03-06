@@ -260,10 +260,6 @@ deploy_agents.py  ─── Deploy Agent Engine Python Code
         ↓
 terraform apply  ──── GE OAuth authorization
                  ──── GE agent registration
-        ↓
-load test  (staging only)
-        ↓
-trigger prod pipeline  (staging only)
 ```
 
 ### One-time Setup
@@ -524,7 +520,6 @@ Handled automatically by Terraform in CI/CD when `oauth_client_id_secret_name` i
 | `GEMINI_MODEL` | No | Gemini model to use. Default: `gemini-2.5-flash`. |
 | `RETRY_ATTEMPTS` | No | Number of retry attempts for transient errors. Default: `3`. |
 | `MCP_TIMEOUT` | No | Timeout in seconds for MCP server calls. Default: `60`. |
-| `DEBUG_CONTEXT` | No | Set to `true` to dump full session context to stderr on each MCP call. |
 | `LOGS_BUCKET_NAME` | No | GCS bucket for artifact storage. Default: none (uses in-memory). |
 
 ### MCP Server (`src/mcp_servers/weather_mcp_server/.env`)
@@ -534,7 +529,11 @@ Handled automatically by Terraform in CI/CD when `oauth_client_id_secret_name` i
 | `PROJECT_ID` | Yes | Google Cloud project ID. |
 | `GOOGLE_CLIENT_ID` | Yes | OAuth client ID for MCP server OAuth middleware. |
 | `GOOGLE_CLIENT_SECRET` | Yes | OAuth client secret. |
+| `OAUTH_SCOPES` | No | OAuth scopes requested during Google login. Default: `openid email profile`. |
+| `OAUTH_REDIRECT_URI_LOCAL` | No | Redirect URI for the MCP server's local OAuth callback. Default: `http://localhost:8080/oauth/callback`. |
 | `OAUTH_REDIRECT_URI_PROD` | No | Production redirect URI. |
+| `USE_PRODUCTION_REDIRECT` | No | Set to `true` to use the production redirect URI. Default: `false`. |
+| `PROJECT_NUMBER` | No | Google Cloud project number. |
 
 ---
 ---
