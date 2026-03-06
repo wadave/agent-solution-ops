@@ -8,6 +8,14 @@ repos:
       - id: check-yaml
       - id: debug-statements
       - id: name-tests-test
+        args: [--pytest-test-first]
+        exclude: >
+            (?x)^(
+                tests/eval/evaluator\.py|
+                tests/eval/run_evaluation\.py|
+                tests/run_all_tests\.py|
+                tests/load_test/load_test\.py
+            )$
       - id: requirements-txt-fixer
 
   - repo: https://github.com/asottile/setup-cfg-fmt
@@ -82,4 +90,4 @@ repos:
     hooks:
       - id: detect-secrets
         args: ['--baseline', '.secrets.baseline', '--exclude-secrets', '(?i)dummy|placeholder']
-        exclude: package.lock.json
+        exclude: package\.lock\.json|.*\.md|.*\.example|.*\.ipynb

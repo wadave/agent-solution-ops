@@ -21,8 +21,9 @@ dependencies = [
   "google-cloud-aiplatform>=1.138.0",
   "google-cloud-logging>=3.13.0",
   "google-genai>=1.43.0",
+  "pre-commit>=4.5.1",
   "pydantic>=2.12.5",
-  "python-dotenv>=1.2.1",
+  "python-dotenv>=1.2.1"
 ]
 
 [project.optional-dependencies]
@@ -32,13 +33,9 @@ lint = [
   "ty>=0.0.18"
 ]
 
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[[tool.uv.index]]
-name = "pypi"
-url = "https://pypi.org/simple"
-default = true
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
 
 [tool.ruff]
 line-length = 100
@@ -50,6 +47,10 @@ select = ["E", "F", "I", "UP"]
 # HTML templates and URLs inside literals cannot be auto-wrapped.
 ignore = ["E501"]
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-asyncio_mode = "auto"
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple"
+default = true

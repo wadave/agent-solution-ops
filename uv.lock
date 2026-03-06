@@ -29,6 +29,7 @@ dependencies = [
     { name = "google-cloud-aiplatform" },
     { name = "google-cloud-logging" },
     { name = "google-genai" },
+    { name = "pre-commit" },
     { name = "pydantic" },
     { name = "python-dotenv" },
 ]
@@ -59,6 +60,7 @@ requires-dist = [
     { name = "google-cloud-aiplatform", specifier = ">=1.138.0" },
     { name = "google-cloud-logging", specifier = ">=3.13.0" },
     { name = "google-genai", specifier = ">=1.43.0" },
+    { name = "pre-commit", specifier = ">=4.5.1" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
     { name = "ruff", marker = "extra == 'lint'", specifier = ">=0.15.2" },

@@ -409,7 +409,7 @@ Edit the `substitutions` block at the bottom of `.cloudbuild/staging.yaml` and `
 
 The `AUTH_ID` values must match the `${each.key}-${local.auth_id}` pattern in `deployment/terraform/gemini_enterprise.tf`. For this project `local.auth_id = "weather-oauth-token"`, giving `staging-weather-oauth-token` and `prod-weather-oauth-token`. Use a project-specific suffix to avoid conflicts with other agents registered to the same GE app.
 
-The service account emails follow the pattern `{project_name}-app@{project_id}.iam.gserviceaccount.com`. 
+The service account emails follow the pattern `{project_name}-app@{project_id}.iam.gserviceaccount.com`.
 
 > **Note:** You can skip manual configuration here. When you run `terraform apply` in Step 5, Terraform will automatically configure these substitutions in the created Cloud Build triggers.
 

@@ -113,9 +113,7 @@ def main():
     # Bucket name follows the pattern set in deployment/terraform/storage.tf:
     #   google_storage_bucket.logs_data_bucket = "{project_id}-{project_name}-logs"
     logs_bucket_name = os.environ.get("LOGS_BUCKET_NAME", f"{project_id}-agents-solution-ops-logs")
-    requirements_file = os.environ.get(
-        "REQUIREMENTS_FILE", "/workspace/requirements.txt"
-    )
+    requirements_file = os.environ.get("REQUIREMENTS_FILE", "/workspace/requirements.txt")
 
     if not project_id or not service_account:
         logger.error("Missing required environment variables: PROJECT_ID, APP_SERVICE_ACCOUNT")
