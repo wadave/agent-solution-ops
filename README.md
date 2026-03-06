@@ -1,62 +1,43 @@
 # Gemini Enterprise with ADK Agent for Secured Remote MCP Services
 
-Complete guide for setting up an ADK agent with dual-mode OAuth authentication to access MCP (Model Context Protocol) services.
+An ADK agent deployed on Google Cloud that uses OAuth 2.0 to securely call MCP (Model Context Protocol) tools. The included example fetches weather data from the National Weather Service API through a FastMCP server on Cloud Run.
 
 ## Table of Contents
-- [What This Project Does](#what-this-project-does)
-- [Architecture & Components](#architecture--components)
-- [Authentication & Security](#authentication--security)
-- [Quick Start](#quick-start)
-- [Deployment](#deployment)
+
+- [Architecture Overview](#architecture-overview)
+- [Local Development](#local-development)
+- [CI/CD Pipeline Setup](#cicd-pipeline-setup)
+  - [Prerequisites](#prerequisites)
+  - [Step 0 — Bootstrap IAM Permissions](#step-0--bootstrap-iam-permissions)
+  - [Step 1 — Create Terraform State Bucket](#step-1--create-terraform-state-bucket)
+  - [Step 2 — Configure Terraform Variables](#step-2--configure-terraform-variables)
+  - [Step 3 — Set Up Cloud Build GitHub Connections](#step-3--set-up-cloud-build-github-connections)
+  - [Step 4 — Configure Cloud Build Substitutions](#step-4--configure-cloud-build-substitutions)
+  - [Step 5 — Bootstrap Terraform](#step-5--bootstrap-terraform)
+  - [Step 6 — Push to Trigger CI/CD](#step-6--push-to-trigger-cicd)
+- [How the Pipeline Works](#how-the-pipeline-works)
+- [Post-Setup Reference](#post-setup-reference)
 - [Environment Variables Reference](#environment-variables-reference)
 - [Troubleshooting](#troubleshooting)
 
-## What This Project Does
-
-The Gemini Enterprise Weather Agent is a cloud-native generative AI system deployed on Google Cloud. It leverages the Gemini Enterprise Engine and an ADK Agent to interpret natural language weather queries. By communicating securely with a custom FastMCP Weather Server hosted on Cloud Run, the agent fetches real-time meteorological data from the National Weather Service (NWS) API and delivers conversational insights back to the user.
-
 ---
+
+## Architecture Overview
+
 ![architecture](./assets/ge-adk-mcp.png)
 
-This project demonstrates how to build an ADK agent that:
+### Components
 
-1. **Uses OAuth 2.0 authentication** to access protected MCP servers
-2. **Automatically switches** between development and production authentication modes
-3. **Handles OAuth flows differently** for local testing vs. Gemini Enterprise deployment
-4. **Calls MCP tools** (weather forecasts) with authenticated requests
+| Component | Role |
+|---|---|
+| **Gemini Enterprise Engine & UI** | User-facing interface, intent recognition, and dynamic token-passing |
+| **VertexAISession Services** | Conversation history and state persistence |
+| **ADK Agent** | Reasoning engine that invokes MCP tools; includes retry logic for transient API errors |
+| **Weather MCP Server (Cloud Run)** | FastMCP microservice that calls the NWS Weather API |
+| **Identity Provider** | OAuth 2.0 authentication for secure tool execution |
+| **Model Armor** | Project-wide floor settings for prompt injection, harmful content, and malicious URI filtering |
 
-### Authentication Architecture
-
-**Development Mode (Local Testing):**
-```
-User → ADK Web UI → Agent (OAuth2Auth) → Google OAuth → Token → MCP Server → Weather API
-```
-- Uses `auth_scheme` and `auth_credential` to trigger OAuth flow
-- ADK manages token storage and refresh automatically
-
-**Production Mode (Gemini Enterprise):**
-```
-User → Gemini Enterprise UI → Agent (header_provider) → Context Token → MCP Server → Weather API
-```
-- `McpToolset` is created with `header_provider=mcp_header_provider` and **no** `auth_scheme`
-- Omitting `auth_scheme` ensures `_credentials_manager = None` in `MCPTool`, so the credential check is skipped and `header_provider` is called directly on every request
-- `mcp_header_provider` reads the OAuth token from `session.state` keyed by `AUTH_ID`
-- Token is injected into MCP requests via `Authorization: Bearer` header
-
-The agent **automatically selects** the correct mode based on the `ENVIRONMENT` variable (`"development"` → dev mode, anything else → production mode).
-
----
----
-## Architecture & Components
-
-* **Gemini Enterprise Engine & UI**: Handles user interactions, intent recognition, and dynamic token-passing.
-* **VertexAISession Services**: Manages user context, conversation history, and state persistence natively within Google Cloud.
-* **ADK Agent**: The reasoning engine that decides when and how to invoke the Weather MCP server. It incorporates robust **Gemini model retry logic** to gracefully handle transient API errors, rate limits, and timeouts.
-* **Weather MCP Server (Cloud Run)**: A FastMCP-based microservice that exposes weather-fetching tools and handles API requests to the NWS.
-* **Identity Provider**: Manages OAuth 2.0 authentication for secure tool execution.
-* **Observability (Agent Engine)**: Cloud Logging, Monitoring, and Tracing are natively enabled for the Agent Engine, providing complete visibility into execution logs, latency metrics, and distributed traces.
-
-## High-Level Component Diagram
+### Component Diagram
 
 ```mermaid
 graph TB
@@ -109,214 +90,133 @@ graph TB
     style MA fill:#fff5f5,stroke:#cc0000,stroke-width:2px,stroke-dasharray: 5 5,color:#cc0000
 ```
 
-**Key Feature:** The agent automatically switches between development and production authentication modes based on the `ENVIRONMENT` variable:
-- **Development**: OAuth2Auth with client credentials (browser-based OAuth flow)
-- **Production**: Token retrieval from Gemini Enterprise context via `header_provider` — no `auth_scheme` is passed, ensuring the credential manager is bypassed entirely
+### Authentication Modes
 
-**Use Cases:**
-- Local testing with `adk web`
-- Deployed agents on Vertex AI Agent Engine registered to Gemini Enterprise
+The agent automatically switches authentication modes based on the `ENVIRONMENT` variable:
+
+| Mode | When | Auth Flow |
+|---|---|---|
+| **Development** | `ENVIRONMENT=development` | `User → ADK Web UI → Agent (OAuth2Auth) → Google OAuth → Token → MCP Server` |
+| **Production** | Any other value | `User → Gemini Enterprise UI → Agent (header_provider) → Context Token → MCP Server` |
+
+**Development mode** uses `auth_scheme` and `auth_credential` to trigger a browser-based OAuth flow. ADK manages token storage and refresh automatically.
+
+**Production mode** creates `McpToolset` with `header_provider=mcp_header_provider` and **no** `auth_scheme`. Omitting `auth_scheme` ensures the credential manager is bypassed and `header_provider` is called directly on every request. The token is read from `session.state` (keyed by `AUTH_ID`) and injected as an `Authorization: Bearer` header.
+
+### Security
+
+Model Armor Floor Settings are configured at the project level via [`deployment/terraform/model_armor.tf`](deployment/terraform/model_armor.tf) to provide:
+
+- **Prompt Injection & Jailbreak Protection** — blocks adversarial attempts to bypass model constraints
+- **Harmful Content Filtering** — enforces RAI filters for hate speech, harassment, sexually explicit content, and dangerous activities
+- **Malicious URI Detection** — blocks links to known malicious sites
+
+See [`docs/model_armor_guide.md`](docs/model_armor_guide.md) for details.
+
 ---
-## 🔐 Authentication & Security
-This system features dynamic authentication switching based on the deployment environment to ensure developer velocity without compromising production security. Additionally, **Model Armor Floor Settings** are enabled project-wide to provide baseline security for all LLM interactions.
 
-### Model Armor (Security Filtering)
-Model Armor Floor Settings are configured at the project level to automatically inspect and block potential threats in both prompts and model responses. These are managed via [model_armor.tf](file:///usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/deployment/terraform/model_armor.tf).
-
-This baseline security provides:
-- **Prompt Injection & Jailbreak Protection**: Detects and blocks adversarial attempts to bypass model constraints.
-- **Harmful Content Filtering**: Enforces Responsible AI (RAI) filters for hate speech, harassment, sexually explicit content, and dangerous activities.
-- **Malicious URI Detection**: Identifies and blocks links to known malicious sites.
-
-For a detailed comparison of security enforcement options, see [MODEL_ARMOR_GUIDE.md](file:///usr/local/google/home/wangdave/remote_ws/projects/agent-solution-ops/docs/model_armor_guide.md).
-
-### Environment-Based Switching
-The `ENVIRONMENT` environment variable dictates the authentication flow:
-
-**Development (`ENVIRONMENT=development`)**:
-* Uses OAuth2Auth with client credentials.
-* Triggers a browser-based OAuth flow for the developer to authenticate locally.
-
-**Production (`ENVIRONMENT=production`)**:
-* Uses server-to-server authentication (e.g., Google Cloud Service Accounts or headless OAuth).
-* Tokens are securely passed from the Gemini Enterprise Engine to the MCP Server via authorization headers.
----
-## Quick Start
+## Local Development
 
 ### Prerequisites
+
 - Python 3.12+
-- Google Cloud Project with OAuth credentials
-- uv package manager: [Install uv](https://docs.astral.sh/uv/getting-started/installation/)
-- Project dependencies: `uv sync`
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) package manager
+- Google Cloud project with [OAuth 2.0 credentials](https://console.cloud.google.com/apis/credentials)
 
-### 1. Clone and Setup
+### Setup
 
-```bash
-cp .env.example .env
-```
+1. **Install dependencies:**
 
-### 2. Configure Google OAuth
+   ```bash
+   uv sync
+   ```
 
-Go to: https://console.cloud.google.com/apis/credentials
+2. **Create your `.env` file:**
 
-Click your OAuth 2.0 Client ID and add the redirect URIs below.
+   ```bash
+   cp .env.example .env
+   ```
 
-**For Development:**
-```
-http://127.0.0.1:8000/dev-ui/
-http://localhost:8000/dev-ui/
-```
+   Edit `.env` and fill in your `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLIENT_ID`, and `GOOGLE_CLIENT_SECRET`.
 
-**For Production (Gemini Enterprise):**
-```
-https://vertexaisearch.cloud.google.com/oauth-redirect
-```
+3. **Add OAuth redirect URIs** to your OAuth 2.0 Client ID in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials):
 
-### 3. Set Environment Variables
+   ```
+   http://127.0.0.1:8000/dev-ui/
+   http://localhost:8000/dev-ui/
+   ```
 
-Edit `.env` at the project root (copied from `.env.example` in Step 1):
+4. **Run the agent:**
 
-```bash
-# Environment — set to 'development' for local testing.
-# Any value other than 'development' activates production mode.
-ENVIRONMENT=development
+   ```bash
+   uv run adk web src
+   ```
 
-# Google Cloud
-GOOGLE_CLOUD_PROJECT="your-project-id"
-GOOGLE_CLOUD_LOCATION="us-central1"
-
-# MCP Server URL (locally running MCP server + /mcp path)
-MCP_URL='http://localhost:8080/mcp'
-
-# OAuth Credentials (required for development mode only)
-GOOGLE_CLIENT_ID='your-client-id'
-GOOGLE_CLIENT_SECRET='your-client-secret'
-
-# OAuth Redirect URIs
-OAUTH_REDIRECT_URI_DEV='http://127.0.0.1:8000/dev-ui/'
-OAUTH_REDIRECT_URI_PROD='https://vertexaisearch.cloud.google.com/oauth-redirect'
-
-# Auth ID — must match the authorization registered in Gemini Enterprise
-AUTH_ID='staging-weather-oauth-token'
-
-# Agent configuration
-GEMINI_MODEL='gemini-2.5-flash'
-RETRY_ATTEMPTS=3
-MCP_TIMEOUT=60
-```
-
-### 4. Run Locally
-
-```bash
-uv run adk web src
-```
-
-Visit http://localhost:8000 and try: "What's the weather in Los Angeles?"
+   Visit http://localhost:8000 and try: *"What's the weather in Los Angeles?"*
 
 ---
----
-## Deployment
 
-### Architecture
+## CI/CD Pipeline Setup
 
-Deployment uses a hybrid approach to separate infrastructure provisioning from application code lifecycle:
+This section walks you through setting up the CI/CD pipeline from scratch. Follow the steps in order — each step is a prerequisite for the next.
 
-| Layer | Tool | Resources |
-|---|---|---|
-| Infrastructure Shells | Terraform | Cloud Run (MCP server), Vertex AI Agent Engine, Artifact Registry, GCS buckets, IAM, Gemini Enterprise OAuth registration, **Model Armor Floor Settings** |
-| Server Code Deployment | `gcloud run deploy` | Cloud Run (Deploy MCP Server Docker image) |
-| Agent Code Deployment | `deployment/deploy_agents.py` | Vertex AI Agent Engine (Deploy Python code and update env vars) |
+> **Summary of what you'll do:**
+> 1. Grant IAM permissions so CI/CD service accounts can manage infrastructure
+> 2. Create a GCS bucket for Terraform state
+> 3. Configure Terraform variables for your projects
+> 4. Connect your GitHub repo to Cloud Build
+> 5. Configure Cloud Build substitution variables
+> 6. Run `terraform apply` to provision all infrastructure (with dummy placeholders)
+> 7. Push code to trigger the pipeline, which replaces the placeholders with real application code
 
-Terraform provisions the initial resource "shells" using dummy source code/images and uses `lifecycle { ignore_changes = [...] }` to ignore future updates. This allows the CI/CD pipeline to deploy application code rapidly using the Python SDK and `gcloud CLI` without risking state drift or fighting with Terraform over environment variables.
+### Prerequisites
 
-#### Agent Naming and Identity
-The agent maintains a strict naming convention across both Vertex AI Agent Engine and Gemini Enterprise using the format: `ADK Hosting Agent for MCP (<environment>)` (e.g., `ADK Hosting Agent for MCP (staging)`).
-
-#### Deployment Resilience
-The `deploy_agents.py` script includes resilient deployment logic to prevent CI/CD pipeline failures:
-- **API Migration:** Automatically detects if an existing agent was created with the legacy `package_spec` API and recreates it using the modern `deployment_source` API.
-- **State Recovery:** If the GCP API returns a stale failed Long-Running Operation (LRO) due to a previous corrupted deployment state, the script catches the failure, extracts the resource name, and falls back to an `update()` call to force a fresh redeployment.
-
-### CI/CD Pipeline
-You would need to push the repository to GitHub to trigger the CI/CD pipeline.
-
-
-Push to the configured branch triggers Cloud Build:
-
-```
-build MCP Docker image
-        ↓
-push image to Artifact Registry
-        ↓
-terraform apply  ──── Cloud Run MCP server (Provision Infrastructure Shell)
-                 ──── Agent Engine (Provision Infrastructure Shell)
-        ↓
-extract Cloud Run URL  (terraform output)
-        ↓
-gcloud run deploy ─── Deploy MCP Server Docker Image
-        ↓
-deploy_agents.py  ─── Deploy Agent Engine Python Code
-                      env vars: MCP_URL, AUTH_ID, LOGS_BUCKET_NAME, telemetry
-        ↓
-terraform apply  ──── GE OAuth authorization
-                 ──── GE agent registration
-```
-
-### One-time Setup
-
-This section is for someone setting up the project from scratch in their own Google Cloud environment. Follow the steps in order — each step is a prerequisite for the next.
-
-#### Prerequisites
-
-**Gemini Enterprise App & OAuth Credentials**
-
-- You must create a Gemini Enterprise app and get its ID.
-- You must set up OAuth 2.0 Web Client credentials and save the downloaded JSON file in Google Secret Manager as `client_secret`.
-
-**Google Cloud Projects**
-
-You need two or three Google Cloud projects:
+**Google Cloud Projects** — You need two or three:
 
 | Variable | Purpose |
 |---|---|
-| `cicd_runner_project_id` | Hosts the Cloud Build triggers for PR checks and prod deploys. Can be the same as `prod_project_id`. |
-| `staging_project_id` | Hosts the staging Cloud Run service, Agent Engine, and the staging CD pipeline trigger. |
+| `cicd_runner_project_id` | Hosts Cloud Build triggers for PR checks and prod deploys. Can be the same as `prod_project_id`. |
+| `staging_project_id` | Hosts the staging Cloud Run service, Agent Engine, and staging CD trigger. |
 | `prod_project_id` | Hosts the production Cloud Run service and Agent Engine. |
 
-**Required caller permissions**
+**Gemini Enterprise** — Create a Gemini Enterprise app and note its ID. Set up OAuth 2.0 Web Client credentials and store the downloaded JSON in Secret Manager as `client_secret`.
 
-The identity running the initial `terraform apply` (your personal account or a bootstrap SA) needs the following on all three projects:
+**Required permissions** — The identity running the initial `terraform apply` needs:
 
-- `roles/owner` or `roles/editor` + `roles/resourcemanager.projectIamAdmin`
+- `roles/owner` **or** `roles/editor` + `roles/resourcemanager.projectIamAdmin`
 
-This is required because Terraform creates service accounts and grants them IAM roles. After the bootstrap, the CI/CD service accounts take over and manage their own permissions going forward.
+  (Required because Terraform creates service accounts and grants IAM roles. After bootstrap, CI/CD service accounts manage their own permissions.)
 
-**Tools**
+**Tools:**
 
 - [Terraform](https://developer.hashicorp.com/terraform/install) >= 1.0.0
 - [gcloud CLI](https://cloud.google.com/sdk/docs/install)
 - [uv](https://docs.astral.sh/uv/getting-started/installation/)
 
-#### Step 0 — Bootstrap Infrastructure Permissions
+---
 
-The identities running the CI/CD pipeline (both the default Cloud Build service account and the custom CD runner) need administrative permissions to manage project infrastructure across staging and production.
+### Step 0 — Bootstrap IAM Permissions
 
-Run the provided setup script from your local machine (using an account with `roles/owner` or `roles/resourcemanager.projectIamAdmin`):
+Grant the CI/CD service accounts the permissions they need to manage infrastructure across staging and production.
+
+Run the setup script from your local machine (using an account with `roles/owner` or `roles/resourcemanager.projectIamAdmin`):
 
 ```bash
 chmod +x deployment/scripts/setup_iam.sh
 ./deployment/scripts/setup_iam.sh <STAGING_PROJECT_ID> <PROD_PROJECT_ID> <STAGING_PROJECT_NUMBER>
 ```
 
-Replace the placeholders with your actual project IDs and the project number of your **staging** project (where the CI/CD runners live). This step ensures that the first pipeline run has the authority to create service accounts, repositories, and Cloud Run services.
+Replace the placeholders with your actual values. `<STAGING_PROJECT_NUMBER>` is the numeric project number of your staging project (where the CI/CD runners live).
 
-#### Step 1 — Create the Terraform state bucket
+---
 
-Terraform state is stored in GCS. The bucket must exist before running `terraform init`. Create it manually:
+### Step 1 — Create Terraform State Bucket
+
+Terraform state is stored in GCS. Create the bucket before running `terraform init`:
 
 ```bash
-gcloud storage buckets create gs://dw-genai-dev-terraform-state \
-  --project=dw-genai-dev \
+gcloud storage buckets create gs://<YOUR_PROJECT_ID>-terraform-state \
+  --project=<YOUR_PROJECT_ID> \
   --location=us-central1 \
   --uniform-bucket-level-access
 ```
@@ -326,17 +226,20 @@ Then update `deployment/terraform/backend.tf` to match:
 ```hcl
 terraform {
   backend "gcs" {
-    bucket = "dw-genai-dev-terraform-state"
+    bucket = "<YOUR_PROJECT_ID>-terraform-state"
     prefix = "agent-solution-ops/prod"
   }
 }
 ```
 
-#### Step 2 — Configure `deployment/terraform/terraform.tfvars`
+---
 
-All Terraform configuration is defined via variables. Create a `terraform.tfvars` file in the `deployment/terraform` directory (this file is git-ignored) to set your project-specific values:
+### Step 2 — Configure Terraform Variables
+
+Create `deployment/terraform/terraform.tfvars` (this file is git-ignored):
 
 ```hcl
+# --- Required ---
 prod_project_id        = "your-production-project-id"
 staging_project_id     = "your-staging-project-id"
 cicd_runner_project_id = "your-cicd-project-id"   # often same as prod
@@ -345,51 +248,49 @@ repository_name        = "your-github-repo-name"
 region                 = "us-central1"
 ge_app_staging         = "your-ge-app-id-staging"
 ge_app_prod            = "your-ge-app-id-prod"
-```
 
-Also configure the Cloud Build connection names to match what you'll create in Step 3:
-
-```hcl
+# --- Cloud Build connections (must match names created in Step 3) ---
 host_connection_name    = "your-cicd-project-connection-name"
 staging_connection_name = "your-staging-project-connection-name"
+
+# --- Gemini Enterprise OAuth (optional — leave "" to skip during bootstrap) ---
+oauth_client_id_secret_name = "client_secret"
 ```
 
-To enable Gemini Enterprise OAuth registration, set the name of the Secret Manager secret that holds your OAuth client JSON:
+> **Tip:** Set `oauth_client_id_secret_name = ""` for the initial bootstrap. Enable it in a later `terraform apply` once the infrastructure is stable.
 
-```hcl
-oauth_client_id_secret_name = "your-oauth-secret-name"
-```
+---
 
-Leave it as `""` to skip GE registration during the initial bootstrap. You can enable it in a later apply once the infrastructure is stable.
+### Step 3 — Set Up Cloud Build GitHub Connections
 
-#### Step 3 — Set up Cloud Build GitHub connections
+Two GitHub connections are required — one per project that runs a pipeline trigger:
 
-Two Cloud Build GitHub connections are required — one in each project that runs a pipeline trigger:
-
-| Project | Connection name (must match `variables.tf`) | Used by |
+| Project | Connection name (must match Step 2) | Used by |
 |---|---|---|
 | `cicd_runner_project_id` | `host_connection_name` | PR checks + prod deploy trigger |
 | `staging_project_id` | `staging_connection_name` | Staging CD trigger |
 
-**To create each connection:**
+**Option A — Google Cloud Console (manual):**
 
-You can manually set up the connections via the Google Cloud Console:
-1. In the Google Cloud Console, go to **Cloud Build → Repositories** for the target project
-2. Click **Create host connection**, choose GitHub, and follow the OAuth flow
-3. Once the connection exists, link your repository to it
+1. Go to **Cloud Build → Repositories** in the target project
+2. Click **Create host connection**, choose GitHub, follow the OAuth flow
+3. Link your repository to the connection
 
-**Or, use the `agent-starter-pack` CLI (Recommended for new repositories):**
-If you have cloned this repository and want to set it up for your own use, you can quickly configure the CI/CD pipeline and GitHub connections using the `agent-starter-pack` CLI:
+**Option B — `agent-starter-pack` CLI (recommended):**
 
 ```bash
 uvx agent-starter-pack setup-cicd
 ```
 
-For more details on this tool, see the [official documentation](https://googlecloudplatform.github.io/agent-starter-pack/cli/setup_cicd).
+See [agent-starter-pack docs](https://googlecloudplatform.github.io/agent-starter-pack/cli/setup_cicd) for details.
 
-Alternatively, store a GitHub Personal Access Token (PAT) in Secret Manager and set `github_pat_secret_id` and `github_app_installation_id` in `variables.tf` — Terraform will create the connection automatically if `create_cb_connection = false`.
+**Option C — Terraform-managed (PAT):**
 
-#### Step 4 — Configure Cloud Build substitutions
+Store a GitHub Personal Access Token in Secret Manager and set `github_pat_secret_id` and `github_app_installation_id` in `variables.tf`. Terraform will create the connection automatically.
+
+---
+
+### Step 4 — Configure Cloud Build Substitutions
 
 Edit the `substitutions` block at the bottom of `.cloudbuild/staging.yaml` and `.cloudbuild/deploy-to-prod.yaml`:
 
@@ -398,58 +299,120 @@ Edit the `substitutions` block at the bottom of `.cloudbuild/staging.yaml` and `
 | `_STAGING_PROJECT_ID` | Google Cloud project ID for staging |
 | `_PROD_PROJECT_ID` | Google Cloud project ID for production |
 | `_REGION` | Google Cloud region (default: `us-central1`) |
-| `_APP_SERVICE_ACCOUNT_STAGING` | Service account email for the staging Agent Engine (created by Terraform — set after first apply) |
-| `_APP_SERVICE_ACCOUNT_PROD` | Service account email for the prod Agent Engine (created by Terraform — set after first apply) |
+| `_APP_SERVICE_ACCOUNT_STAGING` | Service account email for staging Agent Engine (set after first `terraform apply`) |
+| `_APP_SERVICE_ACCOUNT_PROD` | Service account email for prod Agent Engine (set after first `terraform apply`) |
 | `_AUTH_ID_STAGING` | GE authorization ID for staging (default: `staging-weather-oauth-token`) |
 | `_AUTH_ID_PROD` | GE authorization ID for prod (default: `prod-weather-oauth-token`) |
 
-The `AUTH_ID` values must match the `${each.key}-${local.auth_id}` pattern in `deployment/terraform/gemini_enterprise.tf`. For this project `local.auth_id = "weather-oauth-token"`, giving `staging-weather-oauth-token` and `prod-weather-oauth-token`. Use a project-specific suffix to avoid conflicts with other agents registered to the same GE app.
+**How `AUTH_ID` values are determined:** They follow the pattern `<environment>-<local.auth_id>` from `deployment/terraform/gemini_enterprise.tf`, where `local.auth_id = "weather-oauth-token"`. Use a project-specific suffix to avoid conflicts if multiple agents share the same GE app.
 
-The service account emails follow the pattern `{project_name}-app@{project_id}.iam.gserviceaccount.com`.
+**Service account email pattern:** `{project_name}-app@{project_id}.iam.gserviceaccount.com`
 
-> **Note:** You can skip manual configuration here. When you run `terraform apply` in Step 5, Terraform will automatically configure these substitutions in the created Cloud Build triggers.
+> **Note:** You can skip this step. When you run `terraform apply` in Step 5, Terraform automatically configures these substitutions in the Cloud Build triggers it creates.
 
-#### Step 5 — Bootstrap Terraform
+---
 
-Authenticate with your personal account (which has the required permissions from the Prerequisites section):
+### Step 5 — Bootstrap Terraform
+
+Authenticate and apply:
 
 ```bash
 gcloud auth application-default login
-```
 
-Then run the initial apply:
-
-```bash
 cd deployment/terraform
 terraform init
 terraform apply
 ```
 
-This creates all supporting infrastructure: service accounts, IAM bindings, Cloud Build triggers, Artifact Registry repositories, GCS buckets, Cloud Run services, and the Agent Engine shell.
+This creates all infrastructure: service accounts, IAM bindings, Cloud Build triggers, Artifact Registry, GCS buckets, Cloud Run services (with a dummy hello-world image), and the Agent Engine shell (with a dummy payload).
 
-> **Note:** The Agent Engine and MCP Server are provisioned with dummy code/images during this step. Your CI/CD pipeline will deploy the actual application code on the first run.
+> **Important:** At this point, everything exists but runs dummy placeholder code. The CI/CD pipeline will deploy the real application on the first run.
 
-#### Step 6 — Push to trigger CI/CD
+---
 
-The pipelines are triggered by branch pushes:
+### Step 6 — Push to Trigger CI/CD
 
-| Branch | Pipeline | File |
+Push to the appropriate branch to trigger the pipeline:
+
+| Branch | Pipeline file | What it does |
 |---|---|---|
-| `staging` | Build MCP image, Terraform (Cloud Run + OAuth), deploy Agent Engine, register to GE | `.cloudbuild/staging.yaml` |
-| `main` | Deploy to production (requires manual approval in Cloud Build) | `.cloudbuild/deploy-to-prod.yaml` |
-
-Push to `staging` to trigger the first automated deployment:
+| `staging` | `.cloudbuild/staging.yaml` | Build MCP image → Terraform → deploy Agent Engine → register to GE |
+| `main` | `.cloudbuild/deploy-to-prod.yaml` | Deploy to production (requires manual approval in Cloud Build) |
 
 ```bash
 git push origin staging
 ```
 
+After this push, Cloud Build will:
+1. Build the real Docker image for your MCP server
+2. Push it to Artifact Registry
+3. Deploy it to Cloud Run (replacing the dummy container)
+4. Run `deploy_agents.py` to upload your agent code to Agent Engine (replacing the dummy payload)
+5. Register the agent with Gemini Enterprise
+
+Your pipeline is now live. Future pushes to `staging` or `main` will trigger redeployments automatically.
+
 ---
 
-#### Ongoing IAM changes
+## How the Pipeline Works
 
-The CI/CD pipelines include their own IAM bindings as Terraform targets, so changes to `cicd_roles` in `variables.tf` are applied automatically on the next pipeline run — no manual intervention needed for own-project role changes.
-Cross-project IAM grants (defined in `cicd_sa_deployment_required_roles`) still require a manual local `terraform apply` because the staging SA cannot grant itself roles in the prod project:
+### Deployment Architecture
+
+The pipeline uses a hybrid approach — Terraform provisions infrastructure shells, while application code is deployed via SDK and CLI:
+
+| Layer | Tool | What it manages |
+|---|---|---|
+| **Infrastructure** | Terraform | Cloud Run, Agent Engine, Artifact Registry, GCS, IAM, GE OAuth, Model Armor |
+| **MCP Server code** | `gcloud run deploy` | Docker image → Cloud Run |
+| **Agent code** | `deployment/deploy_agents.py` | Python tarball → Agent Engine |
+
+Terraform uses `lifecycle { ignore_changes }` on application code fields so the CI/CD pipeline can deploy rapidly without causing state drift.
+
+### Pipeline Execution Flow
+
+```text
+build MCP Docker image
+        |
+push image to Artifact Registry
+        |
+terraform apply  ---- Cloud Run MCP server (provision infrastructure shell)
+                 ---- Agent Engine (provision infrastructure shell)
+        |
+extract Cloud Run URL  (terraform output)
+        |
+gcloud run deploy --- Deploy MCP Server Docker Image
+        |
+deploy_agents.py  --- Deploy Agent Engine Python Code
+                      env vars: MCP_URL, AUTH_ID, LOGS_BUCKET_NAME, telemetry
+        |
+terraform apply  ---- GE OAuth authorization
+                 ---- GE agent registration
+```
+
+### Agent Naming Convention
+
+Agents are named consistently across Vertex AI Agent Engine and Gemini Enterprise:
+
+```
+ADK Hosting Agent for MCP (<environment>)
+```
+
+Example: `ADK Hosting Agent for MCP (staging)`
+
+### Deployment Resilience
+
+The `deploy_agents.py` script handles common failure scenarios:
+
+- **API Migration** — Detects agents created with the legacy `package_spec` API and recreates them with the modern `deployment_source` API
+- **State Recovery** — If the GCP API returns a stale failed LRO from a previous corrupted deployment, the script catches it and falls back to an `update()` call
+
+---
+
+## Post-Setup Reference
+
+### Ongoing IAM Changes
+
+CI/CD pipelines manage their own IAM bindings automatically. Cross-project IAM grants (e.g., staging SA accessing prod) require a manual local apply:
 
 ```bash
 cd deployment/terraform
@@ -457,19 +420,13 @@ terraform apply -target=google_project_iam_member.staging_cicd_deployment_roles 
                 -target=google_project_iam_member.other_projects_roles
 ```
 
-#### Gemini Enterprise OAuth registration
+### Gemini Enterprise OAuth Registration
 
-GE OAuth authorization and agent registration are controlled by `oauth_client_id_secret_name` in `variables.tf`. Set it to the Secret Manager secret name that holds your OAuth client JSON (web app format):
+Controlled by `oauth_client_id_secret_name` in `variables.tf`. Set it to the Secret Manager secret name holding your OAuth client JSON.
 
-```hcl
-variable "oauth_client_id_secret_name" {
-  default = "client_secret"
-}
-```
+**For fresh setups:** The bootstrap `terraform apply` grants `roles/secretmanager.secretAccessor` to the CI/CD service account automatically.
 
-**For fresh setups:** the bootstrap `terraform apply` in Step 5 grants `roles/secretmanager.secretAccessor` to the staging CI/CD service account automatically (it is part of `cicd_roles`). No manual action is needed.
-
-**For existing deployments** where `oauth_client_id_secret_name` was previously empty: setting it to a non-empty value causes Terraform to read the secret at plan time, before it can apply the new IAM role. This is a one-time bootstrapping problem. Break the deadlock with a manual grant:
+**For existing deployments** where `oauth_client_id_secret_name` was previously empty: Setting a non-empty value causes a one-time bootstrapping issue (Terraform reads the secret at plan time before it can apply the IAM role). Fix it with a manual grant:
 
 ```bash
 gcloud secrets add-iam-policy-binding <SECRET_NAME> \
@@ -478,11 +435,7 @@ gcloud secrets add-iam-policy-binding <SECRET_NAME> \
   --role="roles/secretmanager.secretAccessor"
 ```
 
-The SA email follows the pattern `{project_name}-cd@{staging_project_id}.iam.gserviceaccount.com` (e.g. `agents-solution-ops-cd@dw-genai-dev.iam.gserviceaccount.com`). After this one-time grant, the pipeline takes over and manages the role via Terraform going forward.
-
----
-
-#### Manual operations (outside CI/CD)
+### Manual Operations
 
 **Deploy agent manually:**
 
@@ -490,18 +443,14 @@ The SA email follows the pattern `{project_name}-cd@{staging_project_id}.iam.gse
 uv run deployment/deploy_agents.py
 ```
 
-Runs `deployment/deploy_agents.py` directly. Useful for one-off deploys from a developer machine.
-
 **Register to Gemini Enterprise manually:**
 
 ```bash
 uvx agent-starter-pack@0.36.0 register-gemini-enterprise
 ```
 
-Handled automatically by Terraform in CI/CD when `oauth_client_id_secret_name` is set. The Makefile target is available for manual registration or re-registration.
+---
 
----
----
 ## Environment Variables Reference
 
 ### Agent (`src/adk_agent/.env`)
@@ -536,7 +485,7 @@ Handled automatically by Terraform in CI/CD when `oauth_client_id_secret_name` i
 | `PROJECT_NUMBER` | No | Google Cloud project number. |
 
 ---
----
+
 ## Troubleshooting
 
 ### Cloud Build fails with 403 downloading Python packages
@@ -544,27 +493,14 @@ Handled automatically by Terraform in CI/CD when `oauth_client_id_secret_name` i
 **Symptom:**
 
 ```
-× Failed to download `python-dotenv==1.2.1`
-├─▶ Failed to fetch:
-│   `https://us-python.pkg.dev/artifact-foundry-prod/ah-3p-staging-python/...`
-╰─▶ HTTP status client error (403 Forbidden)
+Failed to download `python-dotenv==1.2.1`
+HTTP status client error (403 Forbidden)
+https://us-python.pkg.dev/artifact-foundry-prod/...
 ```
 
-**Cause:**
+**Cause:** If your machine has a corporate Python package proxy (e.g., Google's internal Airlock), `uv lock` bakes internal mirror URLs into `uv.lock`. Cloud Build cannot access those URLs.
 
-On machines with a corporate Python package proxy (e.g., Google's internal Airlock), the system `pip.conf` sets the PyPI index URL to an internal Artifact Registry mirror:
-
-```ini
-# /etc/pip.conf — managed by Airlock
-[global]
-index-url = https://us-python.pkg.dev/artifact-foundry-prod/ah-3p-staging-python/simple/
-```
-
-`uv lock` reads this configuration and bakes the internal mirror URLs into `uv.lock`. Cloud Build, running outside the corporate network, cannot access those internal URLs.
-
-**Fix:**
-
-Pin the uv index to PyPI in `pyproject.toml` using the `[[tool.uv.index]]` table with `default = true`. This is the only form that overrides the system `pip.conf` index in uv (the `[tool.uv]` `index-url` key does not):
+**Fix:** Pin the uv index to PyPI in `pyproject.toml`:
 
 ```toml
 [[tool.uv.index]]
@@ -573,13 +509,12 @@ url = "https://pypi.org/simple"
 default = true
 ```
 
-After adding this, delete and regenerate the lockfile so all package URLs resolve to `files.pythonhosted.org`:
+Then regenerate the lockfile:
 
 ```bash
-rm uv.lock
-uv lock
+rm uv.lock && uv lock
 git add pyproject.toml uv.lock
-git commit -m "fix: pin uv index to PyPI to prevent corporate mirror URLs in lockfile"
+git commit -m "fix: pin uv index to PyPI"
 ```
 
-This is already configured in `pyproject.toml` in this project.
+> This is already configured in this project's `pyproject.toml`.
