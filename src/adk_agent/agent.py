@@ -222,9 +222,11 @@ if app_name:
     # If it's a full resource path, extract the ID part
     if "/" in app_name:
         app_name = app_name.split("/")[-1]
-    logger.info("Initializing ADK App with ID-based name: %s", app_name)
+    # Ensure it starts with a letter to be a valid identifier
+    app_name = f"agent_{app_name}"
+    logger.info("Initializing ADK App with prefixed ID-based name: %s", app_name)
 else:
     app_name = "adk_agent"
-    logger.warning("ADK_AGENT_ENGINE_ID not set, falling back to default name: %s", app_name)
+    logger.info("Initializing ADK App with default name: %s", app_name)
 
 app = App(root_agent=root_agent, name=app_name)

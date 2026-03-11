@@ -13,7 +13,6 @@ description = "ADK agent with dual-mode OAuth authentication for secured MCP ser
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-  "agent-starter-pack>=0.38.0",
   "fastapi>=0.132.0",
   "google-adk[eval]>=1.18",
   "google-auth>=2.41.1",
