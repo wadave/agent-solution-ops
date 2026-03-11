@@ -15,7 +15,9 @@
 import json
 import logging
 import os
+import re
 import time
+from pathlib import Path
 
 from locust import HttpUser, between, task
 
@@ -26,18 +28,31 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Initialize Vertex AI and load agent config
-with open("deployment_metadata.json", encoding="utf-8") as f:
+_metadata_path = Path(__file__).parent.parent.parent / "deployment_metadata.json"
+with open(_metadata_path, encoding="utf-8") as f:
     remote_agent_engine_id = json.load(f)["remote_agent_engine_id"]
 
-parts = remote_agent_engine_id.split("/")
-project_id = parts[1]
-location = parts[3]
-engine_id = parts[5]
+match = re.fullmatch(
+    r"projects/([^/]+)/locations/([^/]+)/reasoningEngines/([^/]+)",
+    remote_agent_engine_id,
+)
+if not match:
+    raise ValueError(
+        f"Invalid remote_agent_engine_id format: {remote_agent_engine_id}. "
+        "Expected: projects/{{project}}/locations/{{location}}/reasoningEngines/{{id}}"
+    )
+project_id, location, engine_id = match.groups()
+
+if not os.environ.get("_AUTH_TOKEN"):
+    raise RuntimeError(
+        "_AUTH_TOKEN environment variable is not set. "
+        "Run: export _AUTH_TOKEN=$(gcloud auth print-access-token -q)"
+    )
 
 # Convert remote agent engine ID to streaming URL.
 base_url = f"https://{location}-aiplatform.googleapis.com"
 url_path = (
-    f"/v1/projects/{project_id}/locations/{location}/reasoningEngines/{engine_id}:streamQuery"
+    f"/v1beta1/projects/{project_id}/locations/{location}/reasoningEngines/{engine_id}:streamQuery"
 )
 
 logger.info("Using remote agent engine ID: %s", remote_agent_engine_id)

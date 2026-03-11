@@ -17,6 +17,7 @@ Note: Flex Pay-as-you-go (Flex Tier) is primarily available in the 'global' loca
 Recommended preview models for Flex: gemini-3-flash-preview, gemini-3.1-flash-image-preview, etc.
 """
 
+import asyncio
 import json
 import logging
 
@@ -96,9 +97,8 @@ class LLMEvaluator:
         """
 
         try:
-            # Note: The google-genai SDK uses synchronous calls by default unless using generate_content_stream
-            # or wrapped in an async way. For simplicity in this eval script, we'll call it and wrap if needed.
-            response = self.client.models.generate_content(
+            response = await asyncio.to_thread(
+                self.client.models.generate_content,
                 model=self.model_id,
                 contents=prompt,
                 config={

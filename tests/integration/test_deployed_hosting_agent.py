@@ -35,7 +35,7 @@ from test_utils import print_test_summary, run_adk_agent_test  # noqa: E402
 
 pytestmark = pytest.mark.skipif(
     not HOSTING_AGENT_ID or not HOSTING_AGENT_RESOURCE_NAME,
-    reason="HOSTING_AGENT_ID or PROJECT_NUMBER not set in environment. Skipping deployed tests.",
+    reason="HOSTING_AGENT_ID or HOSTING_AGENT_RESOURCE_NAME not set in environment. Skipping deployed tests.",
 )
 
 
@@ -48,7 +48,7 @@ async def test_hosting_agent_weather():
         location=LOCATION,
         user_id=DEFAULT_USER_ID,
     )
-    return success
+    assert success, f"Weather (Dallas) test failed. Response: {response}"
 
 
 async def test_hosting_agent_houston_weather():
@@ -60,7 +60,7 @@ async def test_hosting_agent_houston_weather():
         location=LOCATION,
         user_id=DEFAULT_USER_ID,
     )
-    return success
+    assert success, f"Weather (Houston) test failed. Response: {response}"
 
 
 async def test_hosting_agent_generic():
@@ -72,7 +72,7 @@ async def test_hosting_agent_generic():
         location=LOCATION,
         user_id=DEFAULT_USER_ID,
     )
-    return success
+    assert success, f"Generic query test failed. Response: {response}"
 
 
 async def main():

@@ -28,6 +28,7 @@ def test_agent_stream(mock_get_tools) -> None:
     Integration test for the agent stream functionality.
     Tests that the agent returns valid streaming responses.
     """
+    original_tools = root_agent.tools
     root_agent.tools = []
     mock_get_tools.return_value = []
 
@@ -56,3 +57,5 @@ def test_agent_stream(mock_get_tools) -> None:
     assert has_text_content, (
         f"Expected at least one message with text content. Events were: {events}"
     )
+
+    root_agent.tools = original_tools

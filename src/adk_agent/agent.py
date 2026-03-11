@@ -78,7 +78,11 @@ def get_access_token(readonly_context: ReadonlyContext, auth_id: str) -> str | N
         try:
             session_state = dict(readonly_context.session.state)
 
-            if auth_id in session_state and isinstance(session_state[auth_id], str):
+            if (
+                auth_id in session_state
+                and isinstance(session_state[auth_id], str)
+                and len(session_state[auth_id]) > MIN_TOKEN_LENGTH
+            ):
                 return session_state[auth_id]
 
             for key, value in session_state.items():
@@ -89,13 +93,17 @@ def get_access_token(readonly_context: ReadonlyContext, auth_id: str) -> str | N
                 ):
                     return value
         except Exception:
-            pass
+            logger.debug("Failed to read session.state for token lookup", exc_info=True)
 
     # Method 2: Try readonly_context.state
     if hasattr(readonly_context, "state"):
         try:
             state_dict = dict(readonly_context.state)
-            if auth_id in state_dict and isinstance(state_dict[auth_id], str):
+            if (
+                auth_id in state_dict
+                and isinstance(state_dict[auth_id], str)
+                and len(state_dict[auth_id]) > MIN_TOKEN_LENGTH
+            ):
                 return state_dict[auth_id]
 
             for key, value in state_dict.items():
@@ -106,7 +114,7 @@ def get_access_token(readonly_context: ReadonlyContext, auth_id: str) -> str | N
                 ):
                     return value
         except Exception:
-            pass
+            logger.debug("Failed to read context.state for token lookup", exc_info=True)
 
     # Method 3: Try readonly_context.auth_token
     auth_token = getattr(readonly_context, "auth_token", None)
@@ -209,4 +217,14 @@ IMPORTANT INSTRUCTIONS:
     tools=[mcp_toolset],
 )
 
-app = App(root_agent=root_agent, name="adk_agent")
+app_name = os.environ.get("ADK_AGENT_ENGINE_ID")
+if app_name:
+    # If it's a full resource path, extract the ID part
+    if "/" in app_name:
+        app_name = app_name.split("/")[-1]
+    logger.info("Initializing ADK App with ID-based name: %s", app_name)
+else:
+    app_name = "adk_agent"
+    logger.warning("ADK_AGENT_ENGINE_ID not set, falling back to default name: %s", app_name)
+
+app = App(root_agent=root_agent, name=app_name)

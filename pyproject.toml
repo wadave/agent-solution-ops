@@ -21,6 +21,7 @@ dependencies = [
   "google-cloud-aiplatform>=1.138.0",
   "google-cloud-logging>=3.13.0",
   "google-genai>=1.43.0",
+  "locust>=2.43.3",
   "pre-commit>=4.5.1",
   "pydantic>=2.12.5",
   "python-dotenv>=1.2.1"

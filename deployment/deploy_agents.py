@@ -204,6 +204,9 @@ def main():
 
         if display_name in existing_agents:
             logger.info(f"Updating existing agent: {display_name}")
+            # Set the engine ID so the ADK App initializes with the correct name.
+            env_vars["ADK_AGENT_ENGINE_ID"] = existing_agents[display_name]
+            config.env_vars = env_vars
             try:
                 remote_agent = client.agent_engines.update(
                     name=existing_agents[display_name], config=config
@@ -246,6 +249,13 @@ def main():
                     raise
 
         agent_resource_name = remote_agent.api_resource.name
+
+        # For new creates, update with the engine ID so the ADK App name is valid.
+        if "ADK_AGENT_ENGINE_ID" not in env_vars:
+            env_vars["ADK_AGENT_ENGINE_ID"] = agent_resource_name
+            config.env_vars = env_vars
+            logger.info("Updating agent with ADK_AGENT_ENGINE_ID env var")
+            client.agent_engines.update(name=agent_resource_name, config=config)
     finally:
         shutil.rmtree(clean_pkg, ignore_errors=True)
     logger.info(f"Deployed '{display_name}': {agent_resource_name}")

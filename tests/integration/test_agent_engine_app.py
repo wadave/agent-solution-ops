@@ -17,6 +17,7 @@ from unittest.mock import patch
 
 import pytest
 from google.adk.events.event import Event
+from pydantic import ValidationError
 
 from adk_agent.agent_engine_app import AgentEngineApp
 
@@ -52,6 +53,7 @@ async def test_agent_stream_query(mock_get_tools, agent_app: AgentEngineApp) -> 
     """
     from adk_agent.agent import root_agent
 
+    original_tools = root_agent.tools
     root_agent.tools = []
     mock_get_tools.return_value = []
 
@@ -73,6 +75,8 @@ async def test_agent_stream_query(mock_get_tools, agent_app: AgentEngineApp) -> 
 
     assert has_text_content, "Expected at least one event with text content"
 
+    root_agent.tools = original_tools
+
 
 def test_agent_feedback(agent_app: AgentEngineApp) -> None:
     """
@@ -90,7 +94,7 @@ def test_agent_feedback(agent_app: AgentEngineApp) -> None:
     agent_app.register_feedback(feedback_data)
 
     # Test invalid feedback
-    with pytest.raises(ValueError):
+    with pytest.raises(ValidationError):
         invalid_feedback = {
             "score": "invalid",  # Score must be numeric
             "text": "Bad feedback",
